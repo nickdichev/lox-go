@@ -2,6 +2,12 @@
 
 lox programing language implementation in Go
 
-### Grammer
+### Grammar
 
 http://www.craftinginterpreters.com/appendix-i.html
+
+
+### Features
+
+- E-notation
+- Unicode character

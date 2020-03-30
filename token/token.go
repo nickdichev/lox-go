@@ -1,5 +1,6 @@
 package token
 
+// Token is a lexical token of lox programing language.
 type Token int
 
 const (
@@ -7,7 +8,7 @@ const (
 	EOF
 	Comment
 
-	// sigle-character
+	// single-character
 
 	LeftParen  // (
 	RightParen // )
@@ -117,6 +118,7 @@ func (tok Token) String() string {
 	return tokens[i]
 }
 
+// Lookup returns the token type associated with a given string.
 func Lookup(ident string) Token {
 	if tok, ok := keywords[ident]; ok {
 		return tok

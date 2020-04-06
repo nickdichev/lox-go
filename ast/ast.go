@@ -2,6 +2,7 @@ package ast
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/ziyoung/lox-go/token"
@@ -28,12 +29,16 @@ type Stmt interface {
 
 func (*Ident) node() {}
 
+func (*NumberLiteral) node() {}
+func (*StringLiteral) node() {}
+func (*BoolLiteral) node()   {}
+func (*NullLiteral) node()   {}
+
 func (*AssignExpr) node()   {}
 func (*BinaryExpr) node()   {}
 func (*CallExpr) node()     {}
 func (*GetExpr) node()      {}
 func (*GroupingExpr) node() {}
-func (*LiteralExpr) node()  {}
 func (*LogicalExpr) node()  {}
 func (*SetExpr) node()      {}
 func (*SuperExpr) node()    {}
@@ -59,6 +64,37 @@ type Ident struct {
 func (ident *Ident) String() string { return ident.Name }
 
 type (
+	NumberLiteral struct {
+		Value int64
+	}
+	StringLiteral struct {
+		Value string
+	}
+	BoolLiteral struct {
+		Value bool
+	}
+	NullLiteral struct{}
+)
+
+func (*NumberLiteral) expr() {}
+func (*StringLiteral) expr() {}
+func (*BoolLiteral) expr()   {}
+func (*NullLiteral) expr()   {}
+
+func (lit *NumberLiteral) String() string {
+	return strconv.FormatInt(lit.Value, 10)
+}
+func (lit *StringLiteral) String() string {
+	return lit.Value
+}
+func (lit *BoolLiteral) String() string {
+	return strconv.FormatBool(lit.Value)
+}
+func (lit *NullLiteral) String() string {
+	return "null"
+}
+
+type (
 	AssignExpr struct {
 		Left  Ident
 		Value Expr
@@ -78,9 +114,6 @@ type (
 	}
 	GroupingExpr struct {
 		Expression Expr
-	}
-	LiteralExpr struct {
-		Value Expr
 	}
 	LogicalExpr struct {
 		Left     Expr
@@ -114,7 +147,6 @@ func (*BinaryExpr) expr()   {}
 func (*CallExpr) expr()     {}
 func (*GetExpr) expr()      {}
 func (*GroupingExpr) expr() {}
-func (*LiteralExpr) expr()  {}
 func (*LogicalExpr) expr()  {}
 func (*SetExpr) expr()      {}
 func (*SuperExpr) expr()    {}
@@ -144,10 +176,6 @@ func (e *GetExpr) String() string {
 
 func (e *GroupingExpr) String() string {
 	return fmt.Sprintf("(%s)", e.Expression)
-}
-
-func (e *LiteralExpr) String() string {
-	return e.Value.String()
 }
 
 func (e *LogicalExpr) String() string {

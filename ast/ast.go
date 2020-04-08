@@ -65,7 +65,7 @@ func (ident *Ident) String() string { return ident.Name }
 
 type (
 	NumberLiteral struct {
-		Value int64
+		Value float64
 	}
 	StringLiteral struct {
 		Value string
@@ -82,14 +82,17 @@ func (*BoolLiteral) expr()   {}
 func (*NullLiteral) expr()   {}
 
 func (lit *NumberLiteral) String() string {
-	return strconv.FormatInt(lit.Value, 10)
+	return strconv.FormatFloat(lit.Value, 'f', -1, 64)
 }
+
 func (lit *StringLiteral) String() string {
 	return lit.Value
 }
+
 func (lit *BoolLiteral) String() string {
 	return strconv.FormatBool(lit.Value)
 }
+
 func (lit *NullLiteral) String() string {
 	return "null"
 }
@@ -159,7 +162,7 @@ func (e *AssignExpr) String() string {
 }
 
 func (e *BinaryExpr) String() string {
-	return fmt.Sprintf("%s %s %s", e.Left, e.Operator, e.Right)
+	return fmt.Sprintf("(%s %s %s)", e.Left, e.Operator, e.Right)
 }
 
 func (e *CallExpr) String() string {
@@ -195,7 +198,7 @@ func (e *ThisExpr) String() string {
 }
 
 func (e *UnaryExpr) String() string {
-	return fmt.Sprintf("%s%s", e.Operator, e.Right)
+	return fmt.Sprintf("(%s%s)", e.Operator, e.Right)
 }
 
 func (e *VariableExpr) String() string {
@@ -204,7 +207,7 @@ func (e *VariableExpr) String() string {
 
 type (
 	BlockStmt struct {
-		Staments []Stmt
+		Statements []Stmt
 	}
 	ClassStmt struct {
 		Name       Ident
@@ -254,7 +257,7 @@ func (*WhileStmt) stmt()      {}
 func (s *BlockStmt) String() string {
 	var sb strings.Builder
 	sb.WriteRune('{')
-	for _, stmt := range s.Staments {
+	for _, stmt := range s.Statements {
 		sb.WriteString(stmt.String())
 	}
 	sb.WriteRune('}')

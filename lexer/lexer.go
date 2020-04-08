@@ -292,8 +292,8 @@ func (l *Lexer) NextToken() (tok token.Token, literal string) {
 }
 
 // Pos returns current position of lexer.
-func (l *Lexer) Pos() *Position {
-	return &Position{
+func (l *Lexer) Pos() *token.Position {
+	return &token.Position{
 		Line:   l.line,
 		Column: l.column,
 		Offset: l.runeOffset,

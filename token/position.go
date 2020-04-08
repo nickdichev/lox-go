@@ -1,4 +1,4 @@
-package lexer
+package token
 
 import "fmt"
 
@@ -15,5 +15,7 @@ func (pos *Position) String() string {
 	if s == "" {
 		s = "<input>"
 	}
-	return fmt.Sprintf("%s line: %d, column: %d", s, pos.Line, pos.Column)
+	// FIXME: column is wrong.
+	// return fmt.Sprintf("%s line: %d, column: %d", s, pos.Line, pos.Column)
+	return fmt.Sprintf("%s line: %d", s, pos.Line)
 }

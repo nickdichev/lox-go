@@ -3,7 +3,6 @@ package parser
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/ziyoung/lox-go/ast"
@@ -123,26 +122,10 @@ func (p *Parser) parseUnary() ast.Expr {
 func (p *Parser) parsePrimary() (expr ast.Expr) {
 	tok, lit := p.tok, p.lit
 	switch tok {
-	case token.True:
-	case token.False:
-		expr = &ast.BoolLiteral{
-			Value: tok == token.True,
-		}
-	case token.Nil:
-		expr = &ast.NullLiteral{}
-	case token.String:
-		expr = &ast.StringLiteral{
+	case token.True, token.False, token.Nil, token.String, token.Number:
+		expr = &ast.Literal{
+			Token: tok,
 			Value: lit,
-		}
-	case token.Number:
-		v, err := strconv.ParseFloat(lit, 64)
-		if err != nil {
-			v = 0
-			// FIXME: skip error now.
-			fmt.Println(err)
-		}
-		expr = &ast.NumberLiteral{
-			Value: v,
 		}
 	case token.LeftParen:
 		p.nextToken()
@@ -239,4 +222,21 @@ func unTrace(p *Parser, msg string) *Parser {
 	fmt.Printf("%sEND %s\n", identLevel(p.indent), msg)
 	p.indent--
 	return p
+}
+
+// ParseExpr parses expression. If Parse function is finished, it should be deleted.
+func ParseExpr(input string) (expr ast.Expr, err error) {
+	l := lexer.New(input)
+	p := New(l)
+	defer func() {
+		if r := recover(); r != nil {
+			if parseErr, ok := r.(parseError); ok {
+				err = &parseErr
+				expr = nil
+			} else {
+				panic(r)
+			}
+		}
+	}()
+	return p.parseExpression(), nil
 }

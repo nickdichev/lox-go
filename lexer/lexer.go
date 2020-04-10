@@ -101,6 +101,11 @@ func (l *Lexer) readIdentifier() string {
 func (l *Lexer) readString() (string, error) {
 	l.tokBuf.Reset()
 	l.consume()
+	if l.ch == '"' {
+		l.consume()
+		return "", nil
+	}
+
 	for l.ch != '"' {
 		if l.isAtEnd() {
 			l.error(errUnterminated.Error())
@@ -132,6 +137,8 @@ func (l *Lexer) readString() (string, error) {
 		}
 		l.consume()
 	}
+	// end ".
+	l.consume()
 	return l.tokBuf.String(), nil
 }
 

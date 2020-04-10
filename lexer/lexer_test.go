@@ -61,17 +61,25 @@ func TestReadSimpleToken(t *testing.T) {
 }
 
 func TestReadString(t *testing.T) {
-	input := `"abc xyz \u5b57符串 lox\u8Bed言"`
-	expected := "abc xyz 字符串 lox语言"
-	l := New(input)
-	tok, literal := l.NextToken()
-
-	if tok != token.String {
-		t.Fatalf("expected token is string. got %s", tok)
+	tests := []string{
+		"",
+		"abc xyz",
+		"字符串",
+		"lox语言",
 	}
+	input := `"" "abc xyz" "\u5b57符串" "lox\u8Bed言"`
 
-	if literal != expected {
-		t.Fatalf("expected literal is %q. got %q", expected, literal)
+	l := New(input)
+	for _, expected := range tests {
+		tok, literal := l.NextToken()
+
+		if tok != token.String {
+			t.Fatalf("expected token is string. got %s", tok)
+		}
+
+		if literal != expected {
+			t.Fatalf("expected literal is %q. got %q", expected, literal)
+		}
 	}
 }
 

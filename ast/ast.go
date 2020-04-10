@@ -2,7 +2,6 @@ package ast
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/ziyoung/lox-go/token"
@@ -29,10 +28,7 @@ type Stmt interface {
 
 func (*Ident) node() {}
 
-func (*NumberLiteral) node() {}
-func (*StringLiteral) node() {}
-func (*BoolLiteral) node()   {}
-func (*NullLiteral) node()   {}
+func (*Literal) node() {}
 
 func (*AssignExpr) node()   {}
 func (*BinaryExpr) node()   {}
@@ -63,38 +59,25 @@ type Ident struct {
 
 func (ident *Ident) String() string { return ident.Name }
 
-type (
-	NumberLiteral struct {
-		Value float64
-	}
-	StringLiteral struct {
-		Value string
-	}
-	BoolLiteral struct {
-		Value bool
-	}
-	NullLiteral struct{}
-)
-
-func (*NumberLiteral) expr() {}
-func (*StringLiteral) expr() {}
-func (*BoolLiteral) expr()   {}
-func (*NullLiteral) expr()   {}
-
-func (lit *NumberLiteral) String() string {
-	return strconv.FormatFloat(lit.Value, 'f', -1, 64)
+type Literal struct {
+	Token token.Token
+	Value string
 }
 
-func (lit *StringLiteral) String() string {
-	return lit.Value
-}
+func (*Literal) expr() {}
 
-func (lit *BoolLiteral) String() string {
-	return strconv.FormatBool(lit.Value)
-}
-
-func (lit *NullLiteral) String() string {
-	return "null"
+func (lit *Literal) String() string {
+	switch lit.Token {
+	case token.Nil:
+		return "null"
+	case token.True:
+		return "true"
+	case token.False:
+		return "false"
+	case token.Number, token.String:
+		return lit.Value
+	}
+	panic("unknown Literal.")
 }
 
 type (

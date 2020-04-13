@@ -1,4 +1,4 @@
-package evaluator
+package interpreter
 
 import "github.com/ziyoung/lox-go/token"
 

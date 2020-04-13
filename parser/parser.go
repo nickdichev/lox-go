@@ -10,11 +10,6 @@ import (
 	"github.com/ziyoung/lox-go/token"
 )
 
-type item struct {
-	tok token.Token
-	lit string
-}
-
 // Parser represents the lox parser.
 type Parser struct {
 	l *lexer.Lexer
@@ -36,12 +31,74 @@ func (p *Parser) nextToken() token.Token {
 	return tok
 }
 
-// func (p *Parser) peekToken() token.Token {
-// 	p.peekCount++
-// 	tok, lit := p.l.NextToken()
-// 	p.items[p.peekCount] = item{tok, lit}
-// 	return tok
-// }
+// Parse returns all statements of input.
+func (p *Parser) Parse() []ast.Stmt {
+	statements := make([]ast.Stmt)
+	for !p.isAtEnd() {
+		stmt := p.parseDeclaration()
+		statements = append(statements, stmt)
+	}
+	return statements
+}
+
+func (p *Parser) parseDeclaration() (stmt ast.Stmt) {
+	defer func() {
+		if r := recover(); r != nil {
+			if _, ok := r.(parseError); ok {
+				stmt = nil
+				p.synchronize()
+			} else {
+				panic(r)
+			}
+		}
+	}()
+	if p.match(token.Var) {
+		stmt = p.parseVarDeclaration()
+		return
+	}
+	stmt = p.parseStatement()
+	return
+}
+
+func (p *Parser) parseVarDeclaration() *ast.VarStmt {
+	name := p.lit
+	p.expect(token.Identifier, "Expect variable name.")
+	var stmt = &ast.VarStmt{
+		Name: &ast.Ident{
+			Name: name,
+		},
+	}
+	var initializer ast.Expr
+	if p.match(token.Equal) {
+		initializer = p.parseExpression()
+	}
+	p.expect(token.Semicolon, "Expect ';' after variable declaration.")
+	stmt.Initializer = initializer
+	return stmt
+}
+
+func (p *Parser) parseStatement() ast.Stmt {
+	if p.match(token.Print) {
+		return p.parsePrintStatement()
+	}
+	return p.parseExprStatement()
+}
+
+func (p *Parser) parsePrintStatement() ast.Stmt {
+	expr := p.parseExpression()
+	p.expect(token.Semicolon, "Expect ';' after value.")
+	return &ast.PrintStmt{
+		Expression: expr,
+	}
+}
+
+func (p *Parser) parseExprStatement() ast.Stmt {
+	expr := p.parseExpression()
+	p.expect(token.Semicolon, "Expect ';' after expression.")
+	return &ast.ExprStmt{
+		Expression: expr,
+	}
+}
 
 func (p *Parser) parseExpression() ast.Expr {
 	return p.parseEquality()

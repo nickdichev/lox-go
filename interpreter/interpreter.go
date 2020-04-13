@@ -1,6 +1,8 @@
-package evaluator
+package interpreter
 
 import (
+	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/ziyoung/lox-go/ast"
@@ -14,6 +16,22 @@ var (
 	Nil   = &valuer.Nil{}
 )
 
+func Interpret(statements []ast.Stmt) {
+	defer func() {
+		if r := recover(); r != nil {
+			if err, ok := r.(runtimeError); ok {
+				// TODO: add position for token.
+				fmt.Fprintf(os.Stderr, "%s \nat %s", err.Error(), err.token)
+			} else {
+				panic(r)
+			}
+		}
+	}()
+	for _, stmt := range statements {
+		Eval(stmt)
+	}
+}
+
 func Eval(node ast.Node) valuer.Valuer {
 	switch n := node.(type) {
 	case *ast.Literal:
@@ -24,6 +42,10 @@ func Eval(node ast.Node) valuer.Valuer {
 		return evalUnaryExpr(n)
 	case *ast.GroupingExpr:
 		return Eval(n.Expression)
+	case *ast.PrintStmt:
+		v := Eval(n.Expression)
+		fmt.Println(v)
+		return Nil
 	}
 
 	panic("unknown ast type.")

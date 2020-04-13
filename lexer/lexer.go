@@ -1,14 +1,13 @@
 package lexer
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+	"text/scanner"
 	"unicode"
-	"unicode/utf8"
 
 	"github.com/ziyoung/lox-go/token"
 )
@@ -27,7 +26,7 @@ var (
 
 // Lexer represents a lexical scanner for Lox programing language.
 type Lexer struct {
-	r          *bufio.Reader
+	s          *scanner.Scanner
 	ch         rune
 	tokBuf     *strings.Builder
 	line       int
@@ -40,29 +39,17 @@ func (l *Lexer) consume() {
 	if l.isAtEnd() {
 		return
 	}
-	ch, size, err := l.r.ReadRune()
-	if err != nil {
+	ch := l.s.Next()
+	if ch == scanner.EOF {
 		l.ch = eof
 		return
 	}
 	l.ch = ch
-	l.offset += size
-	l.runeOffset++
-	if l.ch == '\n' {
-		l.line++
-		l.column = 0
-	} else {
-		l.column++
-	}
 }
 
 func (l *Lexer) peek() rune {
-	b, err := l.r.Peek(1)
-	if err != nil {
-		return eof
-	}
-	r, _ := utf8.DecodeRune(b)
-	return r
+	ch := l.s.Peek()
+	return ch
 }
 
 func (l *Lexer) skip() {
@@ -319,8 +306,11 @@ func isAlphaNumeric(ch rune) bool { return unicode.IsLetter(ch) || unicode.IsNum
 
 // New return an instance of Lexer.
 func New(input string) *Lexer {
+	s := &scanner.Scanner{}
+	s.Init(strings.NewReader(input))
 	l := &Lexer{
-		r:      bufio.NewReader(strings.NewReader(input)),
+		// r:      bufio.NewReader(strings.NewReader(input)),
+		s:      s,
 		tokBuf: &strings.Builder{},
 		line:   1,
 		column: 1,

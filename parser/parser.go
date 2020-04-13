@@ -33,7 +33,7 @@ func (p *Parser) nextToken() token.Token {
 
 // Parse returns all statements of input.
 func (p *Parser) Parse() []ast.Stmt {
-	statements := make([]ast.Stmt)
+	statements := make([]ast.Stmt, 0)
 	for !p.isAtEnd() {
 		stmt := p.parseDeclaration()
 		statements = append(statements, stmt)

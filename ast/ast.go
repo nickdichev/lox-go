@@ -42,15 +42,15 @@ func (*ThisExpr) node()     {}
 func (*UnaryExpr) node()    {}
 func (*VariableExpr) node() {}
 
-func (*BlockStmt) node()      {}
-func (*ClassStmt) node()      {}
-func (*ExpressionStmt) node() {}
-func (*FunctionStmt) node()   {}
-func (*IfStmt) node()         {}
-func (*PrintStmt) node()      {}
-func (*ReturnStmt) node()     {}
-func (*VarStmt) node()        {}
-func (*WhileStmt) node()      {}
+func (*BlockStmt) node()    {}
+func (*ClassStmt) node()    {}
+func (*ExprStmt) node()     {}
+func (*FunctionStmt) node() {}
+func (*IfStmt) node()       {}
+func (*PrintStmt) node()    {}
+func (*ReturnStmt) node()   {}
+func (*VarStmt) node()      {}
+func (*WhileStmt) node()    {}
 
 // Ident represents an identifier.
 type Ident struct {
@@ -82,7 +82,7 @@ func (lit *Literal) String() string {
 
 type (
 	AssignExpr struct {
-		Left  Ident
+		Left  *Ident
 		Value Expr
 	}
 	BinaryExpr struct {
@@ -96,7 +96,7 @@ type (
 	}
 	GetExpr struct {
 		Object Expr
-		Name   Ident
+		Name   *Ident
 	}
 	GroupingExpr struct {
 		Expression Expr
@@ -108,7 +108,7 @@ type (
 	}
 	SetExpr struct {
 		Object Expr
-		Name   Ident
+		Name   *Ident
 		Value  Expr
 	}
 	SuperExpr struct {
@@ -193,16 +193,16 @@ type (
 		Statements []Stmt
 	}
 	ClassStmt struct {
-		Name       Ident
+		Name       *Ident
 		SuperClass VariableExpr
 		Methods    []FunctionStmt
 	}
-	ExpressionStmt struct {
+	ExprStmt struct {
 		Expression Expr
 	}
 	FunctionStmt struct {
-		Name   Ident
-		Params []Ident
+		Name   *Ident
+		Params []*Ident
 		Body   []Stmt
 	}
 	IfStmt struct {
@@ -218,7 +218,7 @@ type (
 		Value   Expr
 	}
 	VarStmt struct {
-		Name        Ident
+		Name        *Ident
 		Initializer Expr
 	}
 	WhileStmt struct {
@@ -227,15 +227,15 @@ type (
 	}
 )
 
-func (*BlockStmt) stmt()      {}
-func (*ClassStmt) stmt()      {}
-func (*ExpressionStmt) stmt() {}
-func (*FunctionStmt) stmt()   {}
-func (*IfStmt) stmt()         {}
-func (*PrintStmt) stmt()      {}
-func (*ReturnStmt) stmt()     {}
-func (*VarStmt) stmt()        {}
-func (*WhileStmt) stmt()      {}
+func (*BlockStmt) stmt()    {}
+func (*ClassStmt) stmt()    {}
+func (*ExprStmt) stmt()     {}
+func (*FunctionStmt) stmt() {}
+func (*IfStmt) stmt()       {}
+func (*PrintStmt) stmt()    {}
+func (*ReturnStmt) stmt()   {}
+func (*VarStmt) stmt()      {}
+func (*WhileStmt) stmt()    {}
 
 func (s *BlockStmt) String() string {
 	var sb strings.Builder
@@ -247,11 +247,11 @@ func (s *BlockStmt) String() string {
 	return sb.String()
 }
 
-func (s *ClassStmt) String() string      { return "TODO" }
-func (s *ExpressionStmt) String() string { return "TODO" }
-func (s *FunctionStmt) String() string   { return "TODO" }
-func (s *IfStmt) String() string         { return "TODO" }
-func (s *PrintStmt) String() string      { return "TODO" }
-func (s *ReturnStmt) String() string     { return "TODO" }
-func (s *VarStmt) String() string        { return "TODO" }
-func (s *WhileStmt) String() string      { return "TODO" }
+func (s *ClassStmt) String() string    { return "TODO" }
+func (s *ExprStmt) String() string     { return "TODO" }
+func (s *FunctionStmt) String() string { return "TODO" }
+func (s *IfStmt) String() string       { return "TODO" }
+func (s *PrintStmt) String() string    { return "TODO" }
+func (s *ReturnStmt) String() string   { return "TODO" }
+func (s *VarStmt) String() string      { return "TODO" }
+func (s *WhileStmt) String() string    { return "TODO" }

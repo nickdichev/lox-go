@@ -101,7 +101,22 @@ func (p *Parser) parseExprStatement() ast.Stmt {
 }
 
 func (p *Parser) parseExpression() ast.Expr {
-	return p.parseEquality()
+	return p.parseAssignment()
+}
+
+func (p *Parser) parseAssignment() ast.Expr {
+	expr := p.parseEquality()
+	if p.match(token.Equal) {
+		v := p.parseAssignment()
+		if variable, ok := expr.(*ast.VariableExpr); ok {
+			return &ast.AssignExpr{
+				Left:  variable.Name,
+				Value: v,
+			}
+		}
+		p.error("Invalid assignment target.")
+	}
+	return expr
 }
 
 func (p *Parser) parseEquality() ast.Expr {
@@ -184,6 +199,10 @@ func (p *Parser) parsePrimary() (expr ast.Expr) {
 			Token: tok,
 			Value: lit,
 		}
+	case token.Identifier:
+		expr = &ast.VariableExpr{
+			Name: lit,
+		}
 	case token.LeftParen:
 		p.nextToken()
 		inner := p.parseExpression()
@@ -231,7 +250,7 @@ func (p *Parser) expect(tok token.Token, msg string) {
 }
 
 func (p *Parser) error(msg string) {
-	s := fmt.Sprintf("%s :%s", p.l.Pos(), msg)
+	s := fmt.Sprintf("%s %s", p.l.Pos(), msg)
 	fmt.Fprintln(os.Stderr, s)
 	panic(parseError{s})
 }

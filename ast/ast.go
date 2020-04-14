@@ -82,7 +82,7 @@ func (lit *Literal) String() string {
 
 type (
 	AssignExpr struct {
-		Left  *Ident
+		Left  string
 		Value Expr
 	}
 	BinaryExpr struct {
@@ -124,7 +124,7 @@ type (
 		Right    Expr
 	}
 	VariableExpr struct {
-		Name token.Token
+		Name string
 	}
 )
 
@@ -185,7 +185,7 @@ func (e *UnaryExpr) String() string {
 }
 
 func (e *VariableExpr) String() string {
-	return e.Name.String()
+	return e.Name
 }
 
 type (

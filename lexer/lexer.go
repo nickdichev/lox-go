@@ -26,13 +26,9 @@ var (
 
 // Lexer represents a lexical scanner for Lox programing language.
 type Lexer struct {
-	s          *scanner.Scanner
-	ch         rune
-	tokBuf     *strings.Builder
-	line       int
-	column     int
-	offset     int
-	runeOffset int
+	s      *scanner.Scanner
+	ch     rune
+	tokBuf *strings.Builder
 }
 
 func (l *Lexer) consume() {
@@ -286,12 +282,8 @@ func (l *Lexer) NextToken() (tok token.Token, literal string) {
 }
 
 // Pos returns current position of lexer.
-func (l *Lexer) Pos() *token.Position {
-	return &token.Position{
-		Line:   l.line,
-		Column: l.column,
-		Offset: l.runeOffset,
-	}
+func (l *Lexer) Pos() scanner.Position {
+	return l.s.Pos()
 }
 
 func charCode2Rune(code string) rune {
@@ -309,11 +301,8 @@ func New(input string) *Lexer {
 	s := &scanner.Scanner{}
 	s.Init(strings.NewReader(input))
 	l := &Lexer{
-		// r:      bufio.NewReader(strings.NewReader(input)),
 		s:      s,
 		tokBuf: &strings.Builder{},
-		line:   1,
-		column: 1,
 	}
 	l.consume()
 	return l

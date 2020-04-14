@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/ziyoung/lox-go/interpreter"
+	"github.com/ziyoung/lox-go/lexer"
 	"github.com/ziyoung/lox-go/parser"
 )
 
@@ -26,14 +27,9 @@ func Start(in io.Reader, out io.Writer) {
 		if len(line) == 0 {
 			continue
 		}
-		expr, err := parser.ParseExpr(line)
-		if err != nil {
-			fmt.Fprintln(out, err.Error())
-			continue
-		}
-		v := interpreter.Eval(expr)
-		if v != nil {
-			fmt.Fprintf(out, "\033[1;30m%s\033[0m %s\n", v.Type(), v)
-		}
+		l := lexer.New(line)
+		p := parser.New(l)
+		statements := p.Parse()
+		interpreter.Interpret(statements)
 	}
 }

@@ -16,12 +16,18 @@ var (
 	Nil   = &valuer.Nil{}
 )
 
+var env *valuer.Environment
+
+func init() {
+	env = valuer.New()
+}
+
 func Interpret(statements []ast.Stmt) {
 	defer func() {
 		if r := recover(); r != nil {
 			if err, ok := r.(runtimeError); ok {
 				// TODO: add position for token.
-				fmt.Fprintf(os.Stderr, "%s \nat %s", err.Error(), err.token)
+				fmt.Fprintf(os.Stderr, "%s \nat %s\n", err.Error(), err.token)
 			} else {
 				panic(r)
 			}
@@ -42,10 +48,20 @@ func Eval(node ast.Node) valuer.Valuer {
 		return evalUnaryExpr(n)
 	case *ast.GroupingExpr:
 		return Eval(n.Expression)
+	case *ast.VariableExpr:
+		return evalVariableExpr(n)
+	case *ast.ExprStmt:
+		evalExprStmt(n)
+		return nil
+	case *ast.VarStmt:
+		evalVarStmt(n)
+		return nil
+	case *ast.AssignExpr:
+		evalAssignExpr(n)
+		return nil
 	case *ast.PrintStmt:
-		v := Eval(n.Expression)
-		fmt.Println(v)
-		return Nil
+		evalPrintStmt(n)
+		return nil
 	}
 
 	panic("unknown ast type.")
@@ -136,6 +152,49 @@ func evalUnaryExpr(expr *ast.UnaryExpr) valuer.Valuer {
 	}
 
 	panic("unexpected unary expression.")
+}
+
+func evalVariableExpr(expr *ast.VariableExpr) valuer.Valuer {
+	if v, ok := env.Get(expr.Name); ok {
+		return v
+	}
+	panic(runtimeError{
+		token: token.Identifier,
+		s:     fmt.Sprintf("Undefined variable %s.", expr.Name),
+	})
+}
+
+func evalAssignExpr(expr *ast.AssignExpr) {
+	v := Eval(expr.Value)
+	if ok := env.Assign(expr.Left, v); !ok {
+		panic(runtimeError{
+			token: token.Equal,
+			s:     fmt.Sprintf("Undefined variable %s.", expr.Left),
+		})
+	}
+}
+
+func evalExprStmt(stmt *ast.ExprStmt) {
+	v := Eval(stmt.Expression)
+	if v != nil {
+		fmt.Printf("\033[1;30m%s\033[0m %s\n", v.Type(), v)
+	}
+}
+
+func evalVarStmt(stmt *ast.VarStmt) {
+	name := stmt.Name.Name
+	var v valuer.Valuer
+	if stmt.Initializer != nil {
+		v = Eval(stmt.Initializer)
+	} else {
+		v = Nil
+	}
+	env.Define(name, v)
+}
+
+func evalPrintStmt(stmt *ast.PrintStmt) {
+	v := Eval(stmt.Expression)
+	fmt.Println(v)
 }
 
 func checkNumberOperand(operator token.Token, right valuer.Valuer) float64 {

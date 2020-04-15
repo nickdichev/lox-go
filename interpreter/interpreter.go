@@ -16,6 +16,7 @@ var (
 	Nil   = &valuer.Nil{}
 )
 
+var envFlag string
 var env *valuer.Environment
 
 func init() {
@@ -50,17 +51,19 @@ func Eval(node ast.Node) valuer.Valuer {
 		return Eval(n.Expression)
 	case *ast.VariableExpr:
 		return evalVariableExpr(n)
+	case *ast.AssignExpr:
+		return evalAssignExpr(n)
 	case *ast.ExprStmt:
 		evalExprStmt(n)
 		return nil
 	case *ast.VarStmt:
 		evalVarStmt(n)
 		return nil
-	case *ast.AssignExpr:
-		evalAssignExpr(n)
-		return nil
 	case *ast.PrintStmt:
 		evalPrintStmt(n)
+		return nil
+	case *ast.BlockStmt:
+		evalBlockStmt(n)
 		return nil
 	}
 
@@ -164,20 +167,21 @@ func evalVariableExpr(expr *ast.VariableExpr) valuer.Valuer {
 	})
 }
 
-func evalAssignExpr(expr *ast.AssignExpr) {
+func evalAssignExpr(expr *ast.AssignExpr) valuer.Valuer {
 	v := Eval(expr.Value)
-	if ok := env.Assign(expr.Left, v); !ok {
-		panic(runtimeError{
-			token: token.Equal,
-			s:     fmt.Sprintf("Undefined variable %s.", expr.Left),
-		})
+	if ok := env.Assign(expr.Left, v); ok {
+		return v
 	}
+	panic(runtimeError{
+		token: token.Equal,
+		s:     fmt.Sprintf("Undefined variable %s.", expr.Left),
+	})
 }
 
 func evalExprStmt(stmt *ast.ExprStmt) {
 	v := Eval(stmt.Expression)
-	if v != nil {
-		fmt.Printf("\033[1;30m%s\033[0m %s\n", v.Type(), v)
+	if v != nil && envFlag != "" {
+		fmt.Printf("%s %s\n", black(v.Type().String()), v)
 	}
 }
 
@@ -195,6 +199,17 @@ func evalVarStmt(stmt *ast.VarStmt) {
 func evalPrintStmt(stmt *ast.PrintStmt) {
 	v := Eval(stmt.Expression)
 	fmt.Println(v)
+}
+
+func evalBlockStmt(block *ast.BlockStmt) {
+	previous := env
+	env = valuer.NewEnclosing(env)
+	defer func() {
+		env = previous
+	}()
+	for _, stmt := range block.Statements {
+		Eval(stmt)
+	}
 }
 
 func checkNumberOperand(operator token.Token, right valuer.Valuer) float64 {
@@ -294,4 +309,8 @@ func toBooleanValuer(t bool) *valuer.Boolean {
 		return True
 	}
 	return False
+}
+
+func black(s string) string {
+	return "\033[1;30m" + s + "\033[0m"
 }

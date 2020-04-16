@@ -29,7 +29,9 @@ func Start(in io.Reader, out io.Writer) {
 		}
 		l := lexer.New(line)
 		p := parser.New(l)
-		statements := p.Parse()
-		interpreter.Interpret(statements)
+		statements, err := p.Parse()
+		if err == nil && len(statements) != 0 {
+			interpreter.Interpret(statements)
+		}
 	}
 }

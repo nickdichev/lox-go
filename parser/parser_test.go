@@ -56,6 +56,32 @@ func TestParseExpressionRecover(t *testing.T) {
 	}
 }
 
+func TestParsePrintStament(t *testing.T) {
+	input := `var a = 0;
+a = a + 10;
+var b = a = a + 100;
+print a;`
+	expected := []string{
+		"var a = 0;",
+		"a = (a + 10);",
+		"var b = a = (a + 100);",
+		"print a;",
+	}
+	p := newParserFromInput(input)
+	statements, err := p.Parse()
+	if err != nil {
+		t.Fatalf("parse failed. error: %s", err.Error())
+	}
+	if len(statements) != len(expected) {
+		t.Fatalf("length of staments should be %d. got %d", len(expected), len(statements))
+	}
+	for i, stmt := range statements {
+		if stmt.String() != expected[i] {
+			t.Errorf("test [%d]: expected text is %q. got %q", i, expected[i], stmt.String())
+		}
+	}
+}
+
 func newParserFromInput(input string) *Parser {
 	l := lexer.New(input)
 	return New(l)

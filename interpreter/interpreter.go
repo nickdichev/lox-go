@@ -16,7 +16,7 @@ var (
 	Nil   = &valuer.Nil{}
 )
 
-var envFlag string
+var evalEnv string
 var env *valuer.Environment
 
 func init() {
@@ -34,8 +34,15 @@ func Interpret(statements []ast.Stmt) {
 			}
 		}
 	}()
+	var v valuer.Valuer
 	for _, stmt := range statements {
-		Eval(stmt)
+		val := Eval(stmt)
+		if val != nil {
+			v = val
+		}
+	}
+	if v != nil && evalEnv != "" {
+		fmt.Printf("%s %s\n", black(v.Type().String()), v)
 	}
 }
 
@@ -53,9 +60,6 @@ func Eval(node ast.Node) valuer.Valuer {
 		return evalVariableExpr(n)
 	case *ast.AssignExpr:
 		return evalAssignExpr(n)
-	case *ast.ExprStmt:
-		evalExprStmt(n)
-		return nil
 	case *ast.VarStmt:
 		evalVarStmt(n)
 		return nil
@@ -65,6 +69,8 @@ func Eval(node ast.Node) valuer.Valuer {
 	case *ast.BlockStmt:
 		evalBlockStmt(n)
 		return nil
+	case *ast.ExprStmt:
+		return evalExprStmt(n)
 	}
 
 	panic("unknown ast type.")
@@ -178,11 +184,8 @@ func evalAssignExpr(expr *ast.AssignExpr) valuer.Valuer {
 	})
 }
 
-func evalExprStmt(stmt *ast.ExprStmt) {
-	v := Eval(stmt.Expression)
-	if v != nil && envFlag != "" {
-		fmt.Printf("%s %s\n", black(v.Type().String()), v)
-	}
+func evalExprStmt(stmt *ast.ExprStmt) valuer.Valuer {
+	return Eval(stmt.Expression)
 }
 
 func evalVarStmt(stmt *ast.VarStmt) {

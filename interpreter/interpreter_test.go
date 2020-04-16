@@ -1,6 +1,9 @@
 package interpreter
 
 import (
+	"io/ioutil"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/ziyoung/lox-go/parser"
@@ -30,7 +33,7 @@ func TestEvalNumber(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		v, err := testEvalExpr(test.input)
+		v, err := evalExprFromInput(test.input)
 		if err != nil {
 			t.Fatalf("test[%d] failed. error: %s", i, err.Error())
 		}
@@ -75,7 +78,7 @@ func TestEvalBoolean(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		v, err := testEvalExpr(test.input)
+		v, err := evalExprFromInput(test.input)
 		if err != nil {
 			t.Fatalf("test[%d] failed. error: %s", i, err.Error())
 		}
@@ -97,7 +100,7 @@ func TestEvalString(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		v, err := testEvalExpr(test.input)
+		v, err := evalExprFromInput(test.input)
 		if err != nil {
 			t.Fatalf("test[%d] failed. error: %s", i, err.Error())
 		}
@@ -107,7 +110,33 @@ func TestEvalString(t *testing.T) {
 	}
 }
 
-func testEvalExpr(input string) (v valuer.Valuer, err error) {
+func TestEvalPrintStmt(t *testing.T) {
+	input := `var a = 0;
+var b = a = 999;
+print a;
+a = a + 1;
+print a;
+print b;`
+	expected := []string{"999", "1000", "999"}
+	stmts, err := parser.ParseStmts(input)
+	if err != nil {
+		t.Fatalf("parse failed. error: %s", err.Error())
+	}
+	s := captureStdout(func() {
+		Interpret(stmts)
+	})
+	out := strings.Split(strings.TrimSpace(s), "\n")
+	if len(out) != len(expected) {
+		t.Fatalf("expected to get %d logs. got %d", len(expected), len(out))
+	}
+	for i, s := range out {
+		if s != expected[i] {
+			t.Errorf("test [%d]: expected is %s. got %s", i, expected[i], s)
+		}
+	}
+}
+
+func evalExprFromInput(input string) (v valuer.Valuer, err error) {
 	expr, err := parser.ParseExpr(input)
 	if err != nil {
 		panic(err)
@@ -123,6 +152,24 @@ func testEvalExpr(input string) (v valuer.Valuer, err error) {
 		}
 	}()
 	return Eval(expr), nil
+}
+
+// https://stackoverflow.com/a/47281683
+func captureStdout(fn func()) string {
+	rescueStdout := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		panic(err)
+	}
+	os.Stdout = w
+	fn()
+	w.Close()
+	b, err := ioutil.ReadAll(r)
+	if err != nil {
+		panic(err)
+	}
+	os.Stdout = rescueStdout
+	return string(b)
 }
 
 func testNumberValuer(t *testing.T, val valuer.Valuer, expected float64) bool {

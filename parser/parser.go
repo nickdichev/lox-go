@@ -32,32 +32,30 @@ func (p *Parser) nextToken() token.Token {
 }
 
 // Parse returns all statements of input.
-func (p *Parser) Parse() []ast.Stmt {
-	statements := make([]ast.Stmt, 0)
-	for !p.isAtEnd() {
-		stmt := p.parseDeclaration()
-		statements = append(statements, stmt)
-	}
-	return statements
-}
-
-func (p *Parser) parseDeclaration() (stmt ast.Stmt) {
+func (p *Parser) Parse() (statements []ast.Stmt, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			if _, ok := r.(parseError); ok {
-				stmt = nil
+			if parseErr, ok := r.(parseError); ok {
+				statements = nil
+				err = &parseErr
 				p.synchronize()
 			} else {
 				panic(r)
 			}
 		}
 	}()
-	if p.match(token.Var) {
-		stmt = p.parseVarDeclaration()
-		return
+	for !p.isAtEnd() {
+		stmt := p.parseDeclaration()
+		statements = append(statements, stmt)
 	}
-	stmt = p.parseStatement()
-	return
+	return statements, nil
+}
+
+func (p *Parser) parseDeclaration() ast.Stmt {
+	if p.match(token.Var) {
+		return p.parseVarDeclaration()
+	}
+	return p.parseStatement()
 }
 
 func (p *Parser) parseVarDeclaration() *ast.VarStmt {
@@ -81,6 +79,9 @@ func (p *Parser) parseStatement() ast.Stmt {
 	if p.match(token.Print) {
 		return p.parsePrintStatement()
 	}
+	if p.match(token.If) {
+		return p.parseIfStatement()
+	}
 	if p.match(token.LeftBrace) {
 		return p.parseBlockStatement()
 	}
@@ -92,6 +93,22 @@ func (p *Parser) parsePrintStatement() ast.Stmt {
 	p.expect(token.Semicolon, "Expect ';' after value.")
 	return &ast.PrintStmt{
 		Expression: expr,
+	}
+}
+
+func (p *Parser) parseIfStatement() ast.Stmt {
+	p.expect(token.LeftParen, "Expect '(' after 'if'.")
+	condition := p.parseExpression()
+	p.expect(token.RightParen, "Expect ')' after if condition.")
+	thenBranch := p.parseStatement()
+	var elseBranch ast.Stmt
+	if p.match(token.Else) {
+		elseBranch = p.parseStatement()
+	}
+	return &ast.IfStmt{
+		Condition:  condition,
+		ThenBranch: thenBranch,
+		ElseBranch: elseBranch,
 	}
 }
 
@@ -329,4 +346,11 @@ func ParseExpr(input string) (expr ast.Expr, err error) {
 		}
 	}()
 	return p.parseExpression(), nil
+}
+
+// ParseStmts parses stamtements.
+func ParseStmts(input string) ([]ast.Stmt, error) {
+	l := lexer.New(input)
+	p := New(l)
+	return p.Parse()
 }

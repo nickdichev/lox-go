@@ -1,5 +1,7 @@
 package token
 
+import "encoding/json"
+
 // Token is a lexical token of lox programing language.
 type Token int
 
@@ -116,6 +118,21 @@ func (tok Token) String() string {
 		return ""
 	}
 	return tokens[i]
+}
+
+// UnmarshalJSON unmarshals string to token.
+func (tok *Token) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	*tok = Lookup(s)
+	return nil
+}
+
+// MarshalJSON marshalas token into string.
+func (tok Token) MarshalJSON() ([]byte, error) {
+	return json.Marshal(tok.String())
 }
 
 // Lookup returns the token type associated with a given string.

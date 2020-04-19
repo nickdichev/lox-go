@@ -10,5 +10,6 @@ import (
 func main() {
 	fmt.Fprintln(os.Stdout, "Lox programing language.")
 	fmt.Fprintln(os.Stdout, "Feel free to type commands.")
+	fmt.Fprintln(os.Stdout, "Type \"exit\" to exit.")
 	repl.Start(os.Stdin, os.Stdout)
 }

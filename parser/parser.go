@@ -82,6 +82,12 @@ func (p *Parser) parseStatement() ast.Stmt {
 	if p.match(token.If) {
 		return p.parseIfStatement()
 	}
+	if p.match(token.While) {
+		return p.parseWhileStatement()
+	}
+	if p.match(token.For) {
+		return p.parseForStatement()
+	}
 	if p.match(token.LeftBrace) {
 		return p.parseBlockStatement()
 	}
@@ -112,6 +118,74 @@ func (p *Parser) parseIfStatement() ast.Stmt {
 	}
 }
 
+func (p *Parser) parseWhileStatement() ast.Stmt {
+	p.expect(token.LeftParen, "Expect '(' after 'while'.")
+	condition := p.parseExpression()
+	p.expect(token.RightParen, "Expect ')' after while condition.")
+	body := p.parseStatement()
+	return &ast.WhileStmt{
+		Condition: condition,
+		Body:      body,
+	}
+}
+
+func (p *Parser) parseForStatement() ast.Stmt {
+	p.expect(token.LeftParen, "Expect '(' after 'for'.")
+	var initializer ast.Stmt
+	if !p.match(token.Semicolon) {
+		if p.match(token.Var) {
+			initializer = p.parseVarDeclaration()
+		} else {
+			initializer = p.parseExprStatement()
+		}
+	}
+
+	var condition ast.Expr
+	if !p.match(token.Semicolon) {
+		condition = p.parseExpression()
+		p.expect(token.Semicolon, "Expect ';' after loop condition.")
+	}
+
+	var increment ast.Expr
+	if !p.match(token.Semicolon) {
+		increment = p.parseExpression()
+	}
+
+	p.expect(token.RightParen, "Expect ')' after for clause.")
+	body := p.parseStatement()
+
+	if increment != nil {
+		body = &ast.BlockStmt{
+			Statements: []ast.Stmt{
+				body,
+				&ast.ExprStmt{
+					Expression: increment,
+				},
+			},
+		}
+	}
+	if condition == nil {
+		condition = &ast.Literal{
+			Token: token.True,
+			Value: "true",
+		}
+	}
+	body = &ast.WhileStmt{
+		Condition: condition,
+		Body:      body,
+	}
+
+	if initializer != nil {
+		body = &ast.BlockStmt{
+			Statements: []ast.Stmt{
+				initializer,
+				body,
+			},
+		}
+	}
+	return body
+}
+
 func (p *Parser) parseBlockStatement() ast.Stmt {
 	statements := make([]ast.Stmt, 0)
 	for !(p.check(token.RightBrace) || p.isAtEnd()) {
@@ -136,8 +210,9 @@ func (p *Parser) parseExpression() ast.Expr {
 }
 
 func (p *Parser) parseAssignment() ast.Expr {
-	expr := p.parseEquality()
+	expr := p.parseOr()
 	if p.match(token.Equal) {
+		// recusive call.
 		v := p.parseAssignment()
 		if variable, ok := expr.(*ast.VariableExpr); ok {
 			return &ast.AssignExpr{
@@ -146,6 +221,32 @@ func (p *Parser) parseAssignment() ast.Expr {
 			}
 		}
 		p.error("Invalid assignment target.")
+	}
+	return expr
+}
+
+func (p *Parser) parseOr() ast.Expr {
+	expr := p.parseAnd()
+	if p.match(token.Or) {
+		right := p.parseAnd()
+		expr = &ast.LogicalExpr{
+			Left:     expr,
+			Operator: token.Or,
+			Right:    right,
+		}
+	}
+	return expr
+}
+
+func (p *Parser) parseAnd() ast.Expr {
+	expr := p.parseEquality()
+	if p.match(token.And) {
+		right := p.parseEquality()
+		expr = &ast.LogicalExpr{
+			Left:     expr,
+			Operator: token.And,
+			Right:    right,
+		}
 	}
 	return expr
 }
@@ -225,6 +326,8 @@ func (p *Parser) parseUnary() ast.Expr {
 func (p *Parser) parsePrimary() (expr ast.Expr) {
 	tok, lit := p.tok, p.lit
 	switch tok {
+	default:
+		p.error("Expect expression.")
 	case token.True, token.False, token.Nil, token.String, token.Number:
 		expr = &ast.Literal{
 			Token: tok,
@@ -242,8 +345,6 @@ func (p *Parser) parsePrimary() (expr ast.Expr) {
 			Expression: inner,
 		}
 		return
-	default:
-		p.error("Expected expression.")
 	}
 	p.nextToken()
 	return expr
@@ -329,28 +430,4 @@ func unTrace(p *Parser, msg string) *Parser {
 	fmt.Printf("%sEND %s\n", identLevel(p.indent), msg)
 	p.indent--
 	return p
-}
-
-// ParseExpr parses expression. If Parse function is finished, it should be deleted.
-func ParseExpr(input string) (expr ast.Expr, err error) {
-	l := lexer.New(input)
-	p := New(l)
-	defer func() {
-		if r := recover(); r != nil {
-			if parseErr, ok := r.(parseError); ok {
-				err = &parseErr
-				expr = nil
-			} else {
-				panic(r)
-			}
-		}
-	}()
-	return p.parseExpression(), nil
-}
-
-// ParseStmts parses stamtements.
-func ParseStmts(input string) ([]ast.Stmt, error) {
-	l := lexer.New(input)
-	p := New(l)
-	return p.Parse()
 }

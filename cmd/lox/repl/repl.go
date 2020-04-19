@@ -27,6 +27,10 @@ func Start(in io.Reader, out io.Writer) {
 		if len(line) == 0 {
 			continue
 		}
+		if line == "exit" {
+			fmt.Fprintln(out, "bye.")
+			return
+		}
 		l := lexer.New(line)
 		p := parser.New(l)
 		statements, err := p.Parse()

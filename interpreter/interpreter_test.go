@@ -35,10 +35,10 @@ func TestEvalNumber(t *testing.T) {
 	for i, test := range tests {
 		v, err := evalExprFromInput(test.input)
 		if err != nil {
-			t.Fatalf("test[%d] failed. error: %s", i, err.Error())
+			t.Fatalf("test [%d] failed. error: %s", i, err.Error())
 		}
 		if !testNumberValuer(t, v, test.expected) {
-			t.Fatalf("test[%d] failed. input is %s", i, test.input)
+			t.Fatalf("test [%d] failed. input is %s", i, test.input)
 		}
 	}
 }
@@ -80,7 +80,7 @@ func TestEvalBoolean(t *testing.T) {
 	for i, test := range tests {
 		v, err := evalExprFromInput(test.input)
 		if err != nil {
-			t.Fatalf("test[%d] failed. error: %s", i, err.Error())
+			t.Fatalf("test [%d] failed. error: %s", i, err.Error())
 		}
 		testBooleanValuer(t, v, test.expected)
 	}
@@ -102,12 +102,21 @@ func TestEvalString(t *testing.T) {
 	for i, test := range tests {
 		v, err := evalExprFromInput(test.input)
 		if err != nil {
-			t.Fatalf("test[%d] failed. error: %s", i, err.Error())
+			t.Fatalf("test [%d] failed. error: %s", i, err.Error())
 		}
 		if !testStringValuer(t, v, test.expected) {
-			t.Fatalf("test[%d] failed. input is %s", i, test.input)
+			t.Fatalf("test [%d] failed. input is %s", i, test.input)
 		}
 	}
+}
+
+func TestEvalLogicExpr(t *testing.T) {
+	input := `print 1 or 2;
+print nil or "xx";
+print false and "false";
+print "x" and "empty";`
+	expected := []string{"1", "xx", "false", "empty"}
+	testEvalPrintStmt(t, input, expected)
 }
 
 func TestEvalPrintStmt(t *testing.T) {
@@ -118,22 +127,41 @@ a = a + 1;
 print a;
 print b;`
 	expected := []string{"999", "1000", "999"}
-	stmts, err := parser.ParseStmts(input)
-	if err != nil {
-		t.Fatalf("parse failed. error: %s", err.Error())
+	testEvalPrintStmt(t, input, expected)
+}
+
+func TestEvalIfStmt(t *testing.T) {
+	input := `var a = 2;
+if (a > 1) {
+	print a;
+	a = a + 1;
+	if (a > 3)
+		print a;
+	else
+		print a;
+		print a + " <= 3";
+}`
+	expected := []string{"2", "3", "3 <= 3"}
+	testEvalPrintStmt(t, input, expected)
+}
+
+func TestEvalWhileStmt(t *testing.T) {
+	input := `var a = 0;
+	while (a < 3) {
+		print a;
+		a = a + 1;
 	}
-	s := captureStdout(func() {
-		Interpret(stmts)
-	})
-	out := strings.Split(strings.TrimSpace(s), "\n")
-	if len(out) != len(expected) {
-		t.Fatalf("expected to get %d logs. got %d", len(expected), len(out))
-	}
-	for i, s := range out {
-		if s != expected[i] {
-			t.Errorf("test [%d]: expected is %s. got %s", i, expected[i], s)
-		}
-	}
+`
+	expected := []string{"0", "1", "2"}
+	testEvalPrintStmt(t, input, expected)
+}
+
+func TestEvalForStmt(t *testing.T) {
+	input := `for (var a = 0; a < 3; a = a + 1) {
+		print a;
+	}`
+	expected := []string{"0", "1", "2"}
+	testEvalPrintStmt(t, input, expected)
 }
 
 func evalExprFromInput(input string) (v valuer.Valuer, err error) {
@@ -154,28 +182,10 @@ func evalExprFromInput(input string) (v valuer.Valuer, err error) {
 	return Eval(expr), nil
 }
 
-// https://stackoverflow.com/a/47281683
-func captureStdout(fn func()) string {
-	rescueStdout := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		panic(err)
-	}
-	os.Stdout = w
-	fn()
-	w.Close()
-	b, err := ioutil.ReadAll(r)
-	if err != nil {
-		panic(err)
-	}
-	os.Stdout = rescueStdout
-	return string(b)
-}
-
 func testNumberValuer(t *testing.T, val valuer.Valuer, expected float64) bool {
 	v, ok := val.(*valuer.Number)
 	if !ok {
-		t.Errorf("expected is Number. got %T (%+[1]v)", val)
+		t.Errorf("expected type is Number. got %T (%+[1]v)", val)
 		return false
 	}
 	if v.Value != expected {
@@ -188,7 +198,7 @@ func testNumberValuer(t *testing.T, val valuer.Valuer, expected float64) bool {
 func testBooleanValuer(t *testing.T, val valuer.Valuer, expected bool) bool {
 	v, ok := val.(*valuer.Boolean)
 	if !ok {
-		t.Errorf("expected is Boolean. got %T (%[1]v)", val)
+		t.Errorf("expected type is Boolean. got %T (%[1]v)", val)
 		return false
 	}
 	if v.Value != expected {
@@ -201,7 +211,7 @@ func testBooleanValuer(t *testing.T, val valuer.Valuer, expected bool) bool {
 func testStringValuer(t *testing.T, val valuer.Valuer, expected string) bool {
 	s, ok := val.(*valuer.String)
 	if !ok {
-		t.Errorf("expected is String. got %T (%[1]v)", val)
+		t.Errorf("expected type is String. got %T (%[1]v)", val)
 		return false
 	}
 	if s.Value != expected {
@@ -209,4 +219,56 @@ func testStringValuer(t *testing.T, val valuer.Valuer, expected string) bool {
 		return false
 	}
 	return true
+}
+
+func testEvalPrintStmt(t *testing.T, input string, expected []string) {
+	stmts, err := parser.ParseStmts(input)
+	if err != nil {
+		t.Fatalf("parse failed. error: %s", err.Error())
+	}
+	s := captureStdout(func() {
+		Interpret(stmts)
+	})
+	out := splitByLine(s)
+
+	if len(out) != len(expected) {
+		t.Errorf("should get %d outputs. got %d", len(expected), len(out))
+		return
+	}
+	for i, s := range out {
+		if s != expected[i] {
+			t.Errorf("expected output is %s. got %s", expected[i], s)
+			return
+		}
+	}
+}
+
+// https://stackoverflow.com/a/47281683
+func captureStdout(fn func()) string {
+	rescueStdout := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		panic(err)
+	}
+	os.Stdout = w
+
+	fn()
+
+	ch := make(chan string)
+	go func() {
+		b, err := ioutil.ReadAll(r)
+		if err != nil {
+			panic(err)
+		}
+		ch <- string(b)
+	}()
+	w.Close()
+	os.Stdout = rescueStdout
+	s := <-ch
+	return s
+}
+
+func splitByLine(s string) []string {
+	s = strings.TrimSpace(s)
+	return strings.Split(s, "\n")
 }

@@ -60,6 +60,8 @@ func Eval(node ast.Node) valuer.Valuer {
 		return evalVariableExpr(n)
 	case *ast.AssignExpr:
 		return evalAssignExpr(n)
+	case *ast.LogicalExpr:
+		return evalLogicalExpr(n)
 	case *ast.VarStmt:
 		evalVarStmt(n)
 		return nil
@@ -71,6 +73,12 @@ func Eval(node ast.Node) valuer.Valuer {
 		return nil
 	case *ast.ExprStmt:
 		return evalExprStmt(n)
+	case *ast.IfStmt:
+		evalIfStmt(n)
+		return nil
+	case *ast.WhileStmt:
+		evalWhileStmt(n)
+		return nil
 	}
 
 	panic("unknown ast type.")
@@ -184,6 +192,23 @@ func evalAssignExpr(expr *ast.AssignExpr) valuer.Valuer {
 	})
 }
 
+func evalLogicalExpr(expr *ast.LogicalExpr) valuer.Valuer {
+	left := Eval(expr.Left)
+	switch expr.Operator {
+	default:
+		panic(fmt.Sprintf("unknown operator %s", expr.Operator))
+	case token.Or:
+		if isTruthy(left) {
+			return left
+		}
+	case token.And:
+		if !isTruthy(left) {
+			return left
+		}
+	}
+	return Eval(expr.Right)
+}
+
 func evalExprStmt(stmt *ast.ExprStmt) valuer.Valuer {
 	return Eval(stmt.Expression)
 }
@@ -212,6 +237,21 @@ func evalBlockStmt(block *ast.BlockStmt) {
 	}()
 	for _, stmt := range block.Statements {
 		Eval(stmt)
+	}
+}
+
+func evalIfStmt(stmt *ast.IfStmt) {
+	condition := Eval(stmt.Condition)
+	if isTruthy(condition) {
+		Eval(stmt.ThenBranch)
+	} else if stmt.ElseBranch != nil {
+		Eval(stmt.ElseBranch)
+	}
+}
+
+func evalWhileStmt(stmt *ast.WhileStmt) {
+	for isTruthy(Eval(stmt.Condition)) {
+		Eval(stmt.Body)
 	}
 }
 

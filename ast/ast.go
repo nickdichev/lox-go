@@ -239,11 +239,11 @@ func (*WhileStmt) stmt()    {}
 
 func (s *BlockStmt) String() string {
 	var sb strings.Builder
-	sb.WriteRune('{')
+	sb.WriteString("{ ")
 	for _, stmt := range s.Statements {
 		sb.WriteString(stmt.String())
 	}
-	sb.WriteRune('}')
+	sb.WriteString(" }")
 	return sb.String()
 }
 
@@ -259,10 +259,10 @@ func (s *IfStmt) String() string {
 	var sb strings.Builder
 	sb.WriteString("if (")
 	sb.WriteString(s.Condition.String())
-	sb.WriteString(")")
+	sb.WriteString(") ")
 	sb.WriteString(s.ThenBranch.String())
 	if s.ElseBranch != nil {
-		sb.WriteString("else")
+		sb.WriteString(" else ")
 		sb.WriteString(s.ElseBranch.String())
 	}
 	return sb.String()
@@ -288,4 +288,11 @@ func (s *VarStmt) String() string {
 	return sb.String()
 }
 
-func (s *WhileStmt) String() string { return "TODO" }
+func (s *WhileStmt) String() string {
+	var sb strings.Builder
+	sb.WriteString("while (")
+	sb.WriteString(s.Condition.String())
+	sb.WriteString(") ")
+	sb.WriteString(s.Body.String())
+	return sb.String()
+}

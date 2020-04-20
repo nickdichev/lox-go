@@ -208,8 +208,7 @@ func (l *Lexer) NextToken() (tok token.Token, literal string) {
 		tok = token.Star
 		literal = "*"
 	case '!':
-		matched := l.match('=')
-		if matched {
+		if l.match('=') {
 			tok = token.BangEqual
 			literal = "!="
 		} else {
@@ -218,8 +217,7 @@ func (l *Lexer) NextToken() (tok token.Token, literal string) {
 		}
 		return
 	case '=':
-		matched := l.match('=')
-		if matched {
+		if l.match('=') {
 			tok = token.EqualEqual
 			literal = "=="
 		} else {
@@ -228,8 +226,7 @@ func (l *Lexer) NextToken() (tok token.Token, literal string) {
 		}
 		return
 	case '>':
-		matched := l.match('=')
-		if matched {
+		if l.match('=') {
 			tok = token.GreaterEqual
 			literal = ">="
 		} else {
@@ -238,8 +235,7 @@ func (l *Lexer) NextToken() (tok token.Token, literal string) {
 		}
 		return
 	case '<':
-		matched := l.match('=')
-		if matched {
+		if l.match('=') {
 			tok = token.LessEqual
 			literal = "<="
 		} else {

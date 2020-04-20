@@ -24,7 +24,7 @@ func ParseExpr(input string) (expr ast.Expr, err error) {
 	return p.parseExpression(), nil
 }
 
-// ParseStmts parses stamtements.
+// ParseStmts parses statements.
 func ParseStmts(input string) ([]ast.Stmt, error) {
 	l := lexer.New(input)
 	p := New(l)

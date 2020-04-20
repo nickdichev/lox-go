@@ -12,8 +12,6 @@ type parserTest struct {
 	expected string
 }
 
-// FIXME: use Json net to test ast tree. https://jsonnet.org/learning/tutorial.html
-
 func TestParseExpression(t *testing.T) {
 	tests := []parserTest{
 		{
@@ -41,7 +39,7 @@ func TestParseExpression(t *testing.T) {
 	}
 }
 
-func TestParseLogixExpr(t *testing.T) {
+func TestParseLogicExpr(t *testing.T) {
 	tests := []parserTest{
 		{
 			input:    "true or false",
@@ -91,11 +89,11 @@ func TestParseExpressionRecover(t *testing.T) {
 	}
 }
 
-func TestParsePrintStament(t *testing.T) {
+func TestParsePrintStatement(t *testing.T) {
 	input := `var a = 0;
-a = a + 10;
-var b = a = a + 100;
-print a;`
+		a = a + 10;
+		var b = a = a + 100;
+		print a;`
 	expected := []string{
 		"var a = 0;",
 		"a = (a + 10);",
@@ -118,6 +116,19 @@ print a;`
 }
 
 func TestParseConditionStatement(t *testing.T) {
+	increment := "a = (a + 1);"
+	printStmt := "print a;"
+	block := func(s string) string {
+		return "{ " + s + " }"
+	}
+	whileStmt := func(s string) string {
+		body := printStmt
+		if s != "" {
+			body = block(body) + s
+		}
+		return "while ((a < 2)) " + block(body)
+	}
+
 	tests := []parserTest{
 		{
 			input: `if (a) {
@@ -133,28 +144,46 @@ func TestParseConditionStatement(t *testing.T) {
 			expected: `if (a) print (a + 1);`,
 		},
 		{
-			input: `while (a) {
-				print a;
-			}`,
-			expected: "while (a) { print a; }",
-		},
-		{
 			input: `while (a)
 				print a;`,
 			expected: "while (a) print a;",
 		},
 		{
+			input: `while (a < 2) {
+				print a;
+			}`,
+			expected: whileStmt(""),
+		},
+		{
 			input: `for (var a = 1; a < 2; a = a + 1) {
 				print a;
 			}`,
-			expected: "{ var a = 1;while ((a < 2)) { { print a; }a = (a + 1); } }",
+			expected: block("var a = 1;" + whileStmt(increment)),
 		},
 
 		{
 			input: `for (a = 1; a < 2; a = a + 1) {
 				print a;
 			}`,
-			expected: "{ a = 1;while ((a < 2)) { { print a; }a = (a + 1); } }",
+			expected: block("a = 1;" + whileStmt(increment)),
+		},
+		{
+			input: `for (; a < 2; a = a + 1) {
+				print a;
+			}`,
+			expected: whileStmt(increment),
+		},
+		{
+			input: `for (;;a = a + 1) {
+				print a;
+			}`,
+			expected: "while (true) " + block(block(printStmt)+increment),
+		},
+		{
+			input: `for (;;) {
+				print a;
+			}`,
+			expected: "while (true) " + block(printStmt),
 		},
 	}
 	for i, test := range tests {

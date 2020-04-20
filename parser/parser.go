@@ -147,11 +147,11 @@ func (p *Parser) parseForStatement() ast.Stmt {
 	}
 
 	var increment ast.Expr
-	if !p.match(token.Semicolon) {
+	if !p.match(token.RightParen) {
 		increment = p.parseExpression()
+		p.expect(token.RightParen, "Expect ')' after for clause.")
 	}
 
-	p.expect(token.RightParen, "Expect ')' after for clause.")
 	body := p.parseStatement()
 
 	if increment != nil {

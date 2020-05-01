@@ -12,6 +12,9 @@ type parserTest struct {
 	expected string
 }
 
+var printStmt = "print a;"
+var returnStmt = "return a;"
+
 func TestParseExpression(t *testing.T) {
 	tests := []parserTest{
 		{
@@ -100,27 +103,11 @@ func TestParsePrintStatement(t *testing.T) {
 		"var b = a = (a + 100);",
 		"print a;",
 	}
-	p := newParserFromInput(input)
-	statements, err := p.Parse()
-	if err != nil {
-		t.Fatalf("parse failed. error: %s", err.Error())
-	}
-	if len(statements) != len(expected) {
-		t.Fatalf("length of statements should be %d. got %d", len(expected), len(statements))
-	}
-	for i, stmt := range statements {
-		if stmt.String() != expected[i] {
-			t.Errorf("test [%d]: expected text is %q. got %q", i, expected[i], stmt.String())
-		}
-	}
+	testAstString(t, input, expected)
 }
 
 func TestParseConditionStatement(t *testing.T) {
 	increment := "a = (a + 1);"
-	printStmt := "print a;"
-	block := func(s string) string {
-		return "{ " + s + " }"
-	}
 	whileStmt := func(s string) string {
 		body := printStmt
 		if s != "" {
@@ -202,6 +189,30 @@ func TestParseConditionStatement(t *testing.T) {
 	}
 }
 
+func TestParseFunction(t *testing.T) {
+	input := `fun t() {
+        print a;
+        return a;
+    }
+    fun t1(x,y,z) {
+        print a;
+        return a;
+    }
+    fun t2(x,y,z) {
+        print a;
+        return ;
+	}
+	t2(1,2,3);`
+	body := printStmt + returnStmt
+	expected := []string{
+		"fun t() " + block(body),
+		"fun t1(x, y, z) " + block(body),
+		"fun t2(x, y, z) " + block(printStmt+"return;"),
+		"t2(1, 2, 3);",
+	}
+	testAstString(t, input, expected)
+}
+
 func newParserFromInput(input string) *Parser {
 	l := lexer.New(input)
 	return New(l)
@@ -220,4 +231,24 @@ func parseExpression(p *Parser) (expr ast.Expr, err error) {
 	}()
 	expr = p.parseExpression()
 	return expr, nil
+}
+
+func block(s string) string {
+	return "{ " + s + " }"
+}
+
+func testAstString(t *testing.T, input string, expected []string) {
+	p := newParserFromInput(input)
+	statements, err := p.Parse()
+	if err != nil {
+		t.Fatalf("parse failed. error: %s", err.Error())
+	}
+	if len(statements) != len(expected) {
+		t.Fatalf("length of statements should be %d. got %d", len(expected), len(statements))
+	}
+	for i, stmt := range statements {
+		if stmt.String() != expected[i] {
+			t.Errorf("test [%d]: expected text is %q. got %q", i, expected[i], stmt.String())
+		}
+	}
 }

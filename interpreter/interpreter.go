@@ -38,7 +38,11 @@ func Interpret(statements []ast.Stmt) {
 	for _, stmt := range statements {
 		val := Eval(stmt)
 		if val != nil {
-			v = val
+			if val.Type() == valuer.ReturnType {
+				fmt.Fprintf(os.Stderr, "Unexpected return statement %v\n", val)
+			} else {
+				v = val
+			}
 		}
 	}
 	if v != nil && evalEnv != "" {
@@ -62,23 +66,27 @@ func Eval(node ast.Node) valuer.Valuer {
 		return evalAssignExpr(n)
 	case *ast.LogicalExpr:
 		return evalLogicalExpr(n)
+	case *ast.CallExpr:
+		return evalCallExpr(n)
 	case *ast.VarStmt:
 		evalVarStmt(n)
+		return nil
+	case *ast.FunctionStmt:
+		evalFunctionStmt(n)
 		return nil
 	case *ast.PrintStmt:
 		evalPrintStmt(n)
 		return nil
 	case *ast.BlockStmt:
-		evalBlockStmt(n)
-		return nil
+		return evalBlockStmt(n)
 	case *ast.ExprStmt:
 		return evalExprStmt(n)
 	case *ast.IfStmt:
-		evalIfStmt(n)
-		return nil
+		return evalIfStmt(n)
 	case *ast.WhileStmt:
-		evalWhileStmt(n)
-		return nil
+		return evalWhileStmt(n)
+	case *ast.ReturnStmt:
+		return evalReturnStmt(n)
 	}
 
 	panic("unknown ast type.")
@@ -209,6 +217,35 @@ func evalLogicalExpr(expr *ast.LogicalExpr) valuer.Valuer {
 	return Eval(expr.Right)
 }
 
+func evalCallExpr(expr *ast.CallExpr) valuer.Valuer {
+	callee := Eval(expr.Callee)
+	function, ok := callee.(*valuer.Function)
+	if !ok {
+		panic(runtimeError{
+			s:     "Can only call functions and classes.",
+			token: token.LeftParen,
+		})
+	}
+	if function.Arity() != len(expr.Arguments) {
+		panic(runtimeError{
+			s:     fmt.Sprintf("Expected %d arguments bug got %d", function.Arity(), len(expr.Arguments)),
+			token: token.LeftParen,
+		})
+	}
+	environment := function.Closure
+	if len(function.Params) != 0 {
+		environment = valuer.NewEnclosing(function.Closure)
+		for i, param := range function.Params {
+			environment.Define(param.Name, Eval(expr.Arguments[i]))
+		}
+	}
+	v := executeBlock(function.Body, environment)
+	if returnValue, ok := v.(*valuer.ReturnValue); ok {
+		return returnValue.Value
+	}
+	return v
+}
+
 func evalExprStmt(stmt *ast.ExprStmt) valuer.Valuer {
 	return Eval(stmt.Expression)
 }
@@ -229,29 +266,67 @@ func evalPrintStmt(stmt *ast.PrintStmt) {
 	fmt.Println(v)
 }
 
-func evalBlockStmt(block *ast.BlockStmt) {
-	previous := env
+func evalBlockStmt(block *ast.BlockStmt) valuer.Valuer {
 	env = valuer.NewEnclosing(env)
+	return executeBlock(block.Statements, env)
+}
+
+func executeBlock(statements []ast.Stmt, environment *valuer.Environment) valuer.Valuer {
+	previous := env
+	env = environment
 	defer func() {
 		env = previous
 	}()
-	for _, stmt := range block.Statements {
-		Eval(stmt)
+	for _, stmt := range statements {
+		result := Eval(stmt)
+		if result != nil {
+			if rt := result.Type(); rt == valuer.ReturnType {
+				return result
+			}
+		}
 	}
+	return Nil
 }
 
-func evalIfStmt(stmt *ast.IfStmt) {
+func evalIfStmt(stmt *ast.IfStmt) valuer.Valuer {
 	condition := Eval(stmt.Condition)
 	if isTruthy(condition) {
-		Eval(stmt.ThenBranch)
+		return Eval(stmt.ThenBranch)
 	} else if stmt.ElseBranch != nil {
-		Eval(stmt.ElseBranch)
+		return Eval(stmt.ElseBranch)
 	}
+	return Nil
 }
 
-func evalWhileStmt(stmt *ast.WhileStmt) {
+func evalWhileStmt(stmt *ast.WhileStmt) valuer.Valuer {
 	for isTruthy(Eval(stmt.Condition)) {
-		Eval(stmt.Body)
+		result := Eval(stmt.Body)
+		if result != nil {
+			if rt := result.Type(); rt == valuer.ReturnType {
+				return result
+			}
+		}
+	}
+	return Nil
+}
+
+func evalFunctionStmt(stmt *ast.FunctionStmt) {
+	fn := &valuer.Function{
+		Name:    stmt.Name,
+		Params:  stmt.Params,
+		Body:    stmt.Body,
+		Closure: env,
+	}
+	env.Define(stmt.Name, fn)
+}
+
+func evalReturnStmt(stmt *ast.ReturnStmt) valuer.Valuer {
+	var v valuer.Valuer = Nil
+	if stmt.Value != nil {
+		v = Eval(stmt.Value)
+	}
+	return &valuer.ReturnValue{
+		Value: v,
 	}
 }
 

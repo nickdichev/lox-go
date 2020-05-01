@@ -55,6 +55,9 @@ func (p *Parser) parseDeclaration() ast.Stmt {
 	if p.match(token.Var) {
 		return p.parseVarDeclaration()
 	}
+	if p.match(token.Fun) {
+		return p.parseFunDeclaration()
+	}
 	return p.parseStatement()
 }
 
@@ -75,6 +78,36 @@ func (p *Parser) parseVarDeclaration() *ast.VarStmt {
 	return stmt
 }
 
+func (p *Parser) parseFunDeclaration() *ast.FunctionStmt {
+	name := p.lit
+	p.expect(token.Identifier, "Expect function name.")
+	p.expect(token.LeftParen, "Expect '(' after function name.")
+	fun := &ast.FunctionStmt{
+		Name:   name,
+		Params: make([]*ast.Ident, 0),
+		Body:   make([]ast.Stmt, 0),
+	}
+	if !p.match(token.RightParen) {
+		for {
+			lit := p.lit
+			p.expect(token.Identifier, "Expect parameter name.")
+			if len(fun.Params) >= 255 {
+				p.error("Cannot have more than 255 parameters.")
+			}
+			ident := &ast.Ident{Name: lit}
+			fun.Params = append(fun.Params, ident)
+			if !p.match(token.Comma) {
+				break
+			}
+		}
+		// return fun
+		p.expect(token.RightParen, "Expect ')' after parameters.")
+	}
+	p.expect(token.LeftBrace, "Expect '{' before function body.")
+	fun.Body = p.parseBlockStatement().Statements
+	return fun
+}
+
 func (p *Parser) parseStatement() ast.Stmt {
 	if p.match(token.Print) {
 		return p.parsePrintStatement()
@@ -90,6 +123,9 @@ func (p *Parser) parseStatement() ast.Stmt {
 	}
 	if p.match(token.LeftBrace) {
 		return p.parseBlockStatement()
+	}
+	if p.match(token.Return) {
+		return p.parseReturnStatement()
 	}
 	return p.parseExprStatement()
 }
@@ -186,7 +222,7 @@ func (p *Parser) parseForStatement() ast.Stmt {
 	return body
 }
 
-func (p *Parser) parseBlockStatement() ast.Stmt {
+func (p *Parser) parseBlockStatement() *ast.BlockStmt {
 	statements := make([]ast.Stmt, 0)
 	for !(p.check(token.RightBrace) || p.isAtEnd()) {
 		statements = append(statements, p.parseDeclaration())
@@ -205,6 +241,15 @@ func (p *Parser) parseExprStatement() ast.Stmt {
 	}
 }
 
+func (p *Parser) parseReturnStatement() ast.Stmt {
+	stmt := &ast.ReturnStmt{}
+	if !p.match(token.Semicolon) {
+		stmt.Value = p.parseExpression()
+		p.expect(token.Semicolon, "Expect ';' after return value.")
+	}
+	return stmt
+}
+
 func (p *Parser) parseExpression() ast.Expr {
 	return p.parseAssignment()
 }
@@ -212,7 +257,7 @@ func (p *Parser) parseExpression() ast.Expr {
 func (p *Parser) parseAssignment() ast.Expr {
 	expr := p.parseOr()
 	if p.match(token.Equal) {
-		// recusive call.
+		// recursive call.
 		v := p.parseAssignment()
 		if variable, ok := expr.(*ast.VariableExpr); ok {
 			return &ast.AssignExpr{
@@ -320,7 +365,43 @@ func (p *Parser) parseUnary() ast.Expr {
 			Right:    right,
 		}
 	}
-	return p.parsePrimary()
+	return p.parseCall()
+}
+
+func (p *Parser) parseCall() ast.Expr {
+	expr := p.parsePrimary()
+
+	// fn()()
+	for {
+		if p.match(token.LeftParen) {
+			expr = p.finishCall(expr)
+		} else {
+			break
+		}
+	}
+	return expr
+}
+
+func (p *Parser) finishCall(expr ast.Expr) ast.Expr {
+	call := &ast.CallExpr{
+		Callee:    expr,
+		Arguments: make([]ast.Expr, 0),
+	}
+	if p.match(token.RightParen) {
+		return call
+	}
+	for {
+		arg := p.parseExpression()
+		if len(call.Arguments) >= 255 {
+			p.error("Cannot have more than 255 arguments.")
+		}
+		call.Arguments = append(call.Arguments, arg)
+		if !p.match(token.Comma) {
+			break
+		}
+	}
+	p.expect(token.RightParen, "Expect ')' after arguments.")
+	return call
 }
 
 func (p *Parser) parsePrimary() (expr ast.Expr) {

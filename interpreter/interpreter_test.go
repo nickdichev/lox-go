@@ -164,6 +164,68 @@ func TestEvalForStmt(t *testing.T) {
 	testEvalPrintStmt(t, input, expected)
 }
 
+func TestEvalFunctionDeclaration(t *testing.T) {
+	input := `var a = 0;
+	var b = 1;
+	fun x(a) {
+		print a;
+		print b;
+	}
+	fun y() {
+		print a;
+	}
+	x(2);
+	y();`
+	expected := []string{"2", "1", "0"}
+	testEvalPrintStmt(t, input, expected)
+}
+
+func TestReturnStatement(t *testing.T) {
+	input := `var a = 1;
+	fun f() {
+		return a;
+	}
+	print f();
+	print f();
+
+	fun gen() {
+		var a = 2;
+		fun inner() {
+			a = a + 1;
+			return a;
+		}
+		return inner;
+	}
+	var fn = gen();
+	print fn();
+	print fn();
+	var fn1 = gen();
+	print fn();
+`
+	expected := []string{"1", "1", "3", "4", "3"}
+	testEvalPrintStmt(t, input, expected)
+}
+
+// func TestFunctionClosure(t *testing.T) {
+// 	input := `
+// 	fun gen(x) {
+// 		var a = 0;
+// 		fun inner(y) {
+// 			a = a + 1;
+// 			return a + x + y;
+// 		}
+// 		return inner;
+// 	}
+// 	var fn = gen(0);
+// 	print fn(1);
+// 	print fn(2);
+// 	var fn1 = gen(0);
+// 	print fn(1);
+// `
+// 	expected := []string{"2", "4", "2"}
+// 	testEvalPrintStmt(t, input, expected)
+// }
+
 func evalExprFromInput(input string) (v valuer.Valuer, err error) {
 	expr, err := parser.ParseExpr(input)
 	if err != nil {

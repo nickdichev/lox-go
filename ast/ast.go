@@ -153,7 +153,7 @@ func (e *CallExpr) String() string {
 	for i, arg := range e.Arguments {
 		args[i] = arg.String()
 	}
-	return fmt.Sprintf("%s(%s)", e.Callee, strings.Join(args, " ,"))
+	return fmt.Sprintf("%s(%s)", e.Callee, strings.Join(args, ", "))
 }
 
 func (e *GetExpr) String() string {
@@ -201,7 +201,7 @@ type (
 		Expression Expr
 	}
 	FunctionStmt struct {
-		Name   *Ident
+		Name   string
 		Params []*Ident
 		Body   []Stmt
 	}
@@ -253,7 +253,23 @@ func (s *ExprStmt) String() string {
 	return s.Expression.String() + ";"
 }
 
-func (s *FunctionStmt) String() string { return "TODO" }
+func (s *FunctionStmt) String() string {
+	var sb strings.Builder
+	sb.WriteString("fun ")
+	sb.WriteString(s.Name)
+	sb.WriteString("(")
+	params := make([]string, len(s.Params))
+	for i, p := range s.Params {
+		params[i] = p.Name
+	}
+	sb.WriteString(strings.Join(params, ", "))
+	sb.WriteString(") { ")
+	for _, stmt := range s.Body {
+		sb.WriteString(stmt.String())
+	}
+	sb.WriteString(" }")
+	return sb.String()
+}
 
 func (s *IfStmt) String() string {
 	var sb strings.Builder
@@ -276,7 +292,13 @@ func (s *PrintStmt) String() string {
 	return sb.String()
 }
 
-func (s *ReturnStmt) String() string { return "TODO" }
+func (s *ReturnStmt) String() string {
+	str := "return"
+	if s.Value != nil {
+		str += " " + s.Value.String()
+	}
+	return str + ";"
+}
 
 func (s *VarStmt) String() string {
 	var sb strings.Builder

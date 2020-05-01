@@ -1,22 +1,30 @@
 package valuer
 
-import "strconv"
+import (
+	"strconv"
+
+	"github.com/ziyoung/lox-go/ast"
+)
 
 var typeMap = map[Type]string{
-	NumberType:  "number",
-	StringType:  "string",
-	BooleanType: "bool",
-	NilType:     "nil",
+	NumberType:   "number",
+	StringType:   "string",
+	BooleanType:  "bool",
+	NilType:      "nil",
+	FunctionType: "function",
+	ReturnType:   "return",
 }
 
 // Type represents type of Valuer.
 type Type int
 
 const (
-	NumberType  Type = iota + 1 // number
-	StringType                  // string
-	BooleanType                 // bool
-	NilType                     // nil
+	NumberType   Type = iota + 1 // number
+	StringType                   // string
+	BooleanType                  // bool
+	NilType                      // nil
+	FunctionType                 // function
+	ReturnType                   // return
 )
 
 func (typ Type) String() string {
@@ -66,3 +74,33 @@ type Nil struct{}
 func (*Nil) Type() Type { return NilType }
 
 func (*Nil) String() string { return "nil" }
+
+type Function struct {
+	Name    string
+	Params  []*ast.Ident
+	Body    []ast.Stmt
+	Closure *Environment
+}
+
+// Type returns its Type.
+func (*Function) Type() Type { return FunctionType }
+
+func (fn *Function) String() string {
+	return "<fn " + fn.Name + ">"
+}
+
+// Arity returns size of params.
+func (fn *Function) Arity() int {
+	return len(fn.Params)
+}
+
+type ReturnValue struct {
+	Value Valuer
+}
+
+// Type returns its Type.
+func (*ReturnValue) Type() Type { return ReturnType }
+
+func (rt *ReturnValue) String() string {
+	return rt.Value.String()
+}

@@ -136,9 +136,7 @@ func resolveExprStmt(stmt *ast.ExprStmt) {
 
 func resolveIfStmt(stmt *ast.IfStmt) {
 	Resolve(stmt.Condition)
-	// log.Printf("stmt thenbranch %#v", stmt.ThenBranch)
 	Resolve(stmt.ThenBranch)
-	// log.Println("after ----")
 	if stmt.ElseBranch != nil {
 		Resolve(stmt.ElseBranch)
 	}

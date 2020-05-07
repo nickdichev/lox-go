@@ -46,14 +46,14 @@ func (env *Environment) ancestor(distance int) *Environment {
 	return cur
 }
 
-func New() *Environment {
+func NewEnv() *Environment {
 	return &Environment{
 		Values: make(map[string]Valuer),
 	}
 }
 
 func NewEnclosing(env *Environment) *Environment {
-	closing := New()
+	closing := NewEnv()
 	closing.Enclosing = env
 	return closing
 }

@@ -30,7 +30,7 @@ func init() {
 }
 
 func initEnv() {
-	globals = valuer.New()
+	globals = valuer.NewEnv()
 	env = globals
 }
 
@@ -38,7 +38,6 @@ func Interpret(statements []ast.Stmt) {
 	defer func() {
 		if r := recover(); r != nil {
 			if err, ok := r.(errors.RuntimeError); ok {
-				// TODO: add position for token.
 				fmt.Fprintln(os.Stderr, err.Error())
 			} else {
 				panic(r)
@@ -121,7 +120,7 @@ func evalLiteral(lit *ast.Literal) valuer.Valuer {
 		}
 		return &valuer.Number{Value: v}
 	case token.Nil:
-		return &valuer.Nil{}
+		return Nil
 	}
 
 	panic("unexpected literal.")

@@ -261,7 +261,7 @@ func (p *Parser) parseAssignment() ast.Expr {
 		v := p.parseAssignment()
 		if variable, ok := expr.(*ast.VariableExpr); ok {
 			return &ast.AssignExpr{
-				Left:  variable.Name,
+				Left:  variable,
 				Value: v,
 			}
 		}
@@ -416,7 +416,8 @@ func (p *Parser) parsePrimary() (expr ast.Expr) {
 		}
 	case token.Identifier:
 		expr = &ast.VariableExpr{
-			Name: lit,
+			Name:     lit,
+			Distance: -1,
 		}
 	case token.LeftParen:
 		p.nextToken()

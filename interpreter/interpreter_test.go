@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ziyoung/lox-go/errors"
 	"github.com/ziyoung/lox-go/parser"
 	"github.com/ziyoung/lox-go/valuer"
 )
@@ -136,12 +137,11 @@ if (a > 1) {
 	print a;
 	a = a + 1;
 	if (a > 3)
-		print a;
+		print a + " > 3";
 	else
-		print a;
 		print a + " <= 3";
 }`
-	expected := []string{"2", "3", "3 <= 3"}
+	expected := []string{"2", "3 <= 3"}
 	testEvalPrintStmt(t, input, expected)
 }
 
@@ -199,32 +199,32 @@ func TestReturnStatement(t *testing.T) {
 	var fn = gen();
 	print fn();
 	print fn();
+
 	var fn1 = gen();
-	print fn();
+	print fn1();
 `
 	expected := []string{"1", "1", "3", "4", "3"}
 	testEvalPrintStmt(t, input, expected)
 }
 
-// func TestFunctionClosure(t *testing.T) {
-// 	input := `
-// 	fun gen(x) {
-// 		var a = 0;
-// 		fun inner(y) {
-// 			a = a + 1;
-// 			return a + x + y;
-// 		}
-// 		return inner;
-// 	}
-// 	var fn = gen(0);
-// 	print fn(1);
-// 	print fn(2);
-// 	var fn1 = gen(0);
-// 	print fn(1);
-// `
-// 	expected := []string{"2", "4", "2"}
-// 	testEvalPrintStmt(t, input, expected)
-// }
+func TestFunctionClosure(t *testing.T) {
+	input := `
+	fun gen(x) {
+		var a = 0;
+		fun inner(y) {
+			a = a + 1;
+			return a + x + y;
+		}
+		return inner;
+	}
+	var fn = gen(0);
+	print fn(1);
+	print fn(2);
+	var fn1 = gen(0);
+	print fn1(1);`
+	expected := []string{"2", "4", "2"}
+	testEvalPrintStmt(t, input, expected)
+}
 
 func evalExprFromInput(input string) (v valuer.Valuer, err error) {
 	expr, err := parser.ParseExpr(input)
@@ -233,7 +233,7 @@ func evalExprFromInput(input string) (v valuer.Valuer, err error) {
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			if runErr, ok := r.(runtimeError); ok {
+			if runErr, ok := r.(errors.RuntimeError); ok {
 				err = &runErr
 				expr = nil
 			} else {
@@ -288,11 +288,12 @@ func testEvalPrintStmt(t *testing.T, input string, expected []string) {
 	if err != nil {
 		t.Fatalf("parse failed. error: %s", err.Error())
 	}
+	// reset environment before interpereting.
+	initEnv()
 	s := captureStdout(func() {
 		Interpret(stmts)
 	})
 	out := splitByLine(s)
-
 	if len(out) != len(expected) {
 		t.Errorf("should get %d outputs. got %d", len(expected), len(out))
 		return

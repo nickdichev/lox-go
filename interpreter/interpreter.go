@@ -6,6 +6,8 @@ import (
 	"strconv"
 
 	"github.com/ziyoung/lox-go/ast"
+	"github.com/ziyoung/lox-go/errors"
+	"github.com/ziyoung/lox-go/resolver"
 	"github.com/ziyoung/lox-go/token"
 	"github.com/ziyoung/lox-go/valuer"
 )
@@ -17,23 +19,35 @@ var (
 )
 
 var evalEnv string
-var env *valuer.Environment
+
+var (
+	env     *valuer.Environment
+	globals *valuer.Environment
+)
 
 func init() {
-	env = valuer.New()
+	initEnv()
+}
+
+func initEnv() {
+	globals = valuer.New()
+	env = globals
 }
 
 func Interpret(statements []ast.Stmt) {
 	defer func() {
 		if r := recover(); r != nil {
-			if err, ok := r.(runtimeError); ok {
+			if err, ok := r.(errors.RuntimeError); ok {
 				// TODO: add position for token.
-				fmt.Fprintf(os.Stderr, "%s \nat %s\n", err.Error(), err.token)
+				fmt.Fprintln(os.Stderr, err.Error())
 			} else {
 				panic(r)
 			}
 		}
 	}()
+	for _, stmt := range statements {
+		resolver.Resolve(stmt)
+	}
 	var v valuer.Valuer
 	for _, stmt := range statements {
 		val := Eval(stmt)
@@ -149,10 +163,7 @@ func evalBinaryExpr(expr *ast.BinaryExpr) valuer.Valuer {
 	case token.Slash:
 		a, b := checkNumberOperands(op, left, right)
 		if b == float64(0) {
-			panic(runtimeError{
-				token: op,
-				s:     "Divisor can't be 0.",
-			})
+			errors.Error(op, "Divisor can't be 0.")
 		}
 		v := a / b
 		return &valuer.Number{Value: v}
@@ -180,24 +191,34 @@ func evalUnaryExpr(expr *ast.UnaryExpr) valuer.Valuer {
 }
 
 func evalVariableExpr(expr *ast.VariableExpr) valuer.Valuer {
-	if v, ok := env.Get(expr.Name); ok {
-		return v
+	if expr.Distance >= 0 {
+		if v, ok := env.GetAt(expr.Distance, expr.Name); ok {
+			return v
+		}
+	} else {
+		if v, ok := globals.Get(expr.Name); ok {
+			return v
+		}
 	}
-	panic(runtimeError{
-		token: token.Identifier,
-		s:     fmt.Sprintf("Undefined variable %s.", expr.Name),
-	})
+
+	errors.Error(token.Identifier, fmt.Sprintf("Undefined variable %s.", expr.Name))
+	return nil
 }
 
 func evalAssignExpr(expr *ast.AssignExpr) valuer.Valuer {
 	v := Eval(expr.Value)
-	if ok := env.Assign(expr.Left, v); ok {
-		return v
+	name, distance := expr.Left.Name, expr.Left.Distance
+	if distance >= 0 {
+		if ok := env.AssignAt(distance, name, v); ok {
+			return v
+		}
+	} else {
+		if ok := globals.Assign(name, v); ok {
+			return v
+		}
 	}
-	panic(runtimeError{
-		token: token.Equal,
-		s:     fmt.Sprintf("Undefined variable %s.", expr.Left),
-	})
+	errors.Error(token.Equal, fmt.Sprintf("Undefined variable %s.", expr.Left))
+	return nil
 }
 
 func evalLogicalExpr(expr *ast.LogicalExpr) valuer.Valuer {
@@ -221,23 +242,15 @@ func evalCallExpr(expr *ast.CallExpr) valuer.Valuer {
 	callee := Eval(expr.Callee)
 	function, ok := callee.(*valuer.Function)
 	if !ok {
-		panic(runtimeError{
-			s:     "Can only call functions and classes.",
-			token: token.LeftParen,
-		})
+		errors.Error(token.LeftParen, "Can only call functions and classes.")
 	}
 	if function.Arity() != len(expr.Arguments) {
-		panic(runtimeError{
-			s:     fmt.Sprintf("Expected %d arguments bug got %d", function.Arity(), len(expr.Arguments)),
-			token: token.LeftParen,
-		})
+		errors.Error(token.LeftParen, fmt.Sprintf("Expected %d arguments bug got %d", function.Arity(), len(expr.Arguments)))
 	}
 	environment := function.Closure
-	if len(function.Params) != 0 {
-		environment = valuer.NewEnclosing(function.Closure)
-		for i, param := range function.Params {
-			environment.Define(param.Name, Eval(expr.Arguments[i]))
-		}
+	environment = valuer.NewEnclosing(function.Closure)
+	for i, param := range function.Params {
+		environment.Define(param.Name, Eval(expr.Arguments[i]))
 	}
 	v := executeBlock(function.Body, environment)
 	if returnValue, ok := v.(*valuer.ReturnValue); ok {
@@ -267,8 +280,7 @@ func evalPrintStmt(stmt *ast.PrintStmt) {
 }
 
 func evalBlockStmt(block *ast.BlockStmt) valuer.Valuer {
-	env = valuer.NewEnclosing(env)
-	return executeBlock(block.Statements, env)
+	return executeBlock(block.Statements, valuer.NewEnclosing(env))
 }
 
 func executeBlock(statements []ast.Stmt, environment *valuer.Environment) valuer.Valuer {
@@ -331,23 +343,18 @@ func evalReturnStmt(stmt *ast.ReturnStmt) valuer.Valuer {
 }
 
 func checkNumberOperand(operator token.Token, right valuer.Valuer) float64 {
-	if a, ok := right.(*valuer.Number); ok {
-		return a.Value
+	a, ok := right.(*valuer.Number)
+	if !ok {
+		errors.Error(operator, "Operand must be a number.")
 	}
-	panic(runtimeError{
-		token: operator,
-		s:     "Operand must be a number.",
-	})
+	return a.Value
 }
 
 func checkNumberOperands(operator token.Token, left, right valuer.Valuer) (float64, float64) {
 	a, ok := left.(*valuer.Number)
 	b, ok1 := right.(*valuer.Number)
 	if !(ok && ok1) {
-		panic(runtimeError{
-			token: operator,
-			s:     "Operands must be numbers.",
-		})
+		errors.Error(operator, "Operands must be numbers.")
 	}
 	return a.Value, b.Value
 }
@@ -375,10 +382,8 @@ func doPlusOperation(left, right valuer.Valuer) valuer.Valuer {
 		}
 	}
 
-	panic(runtimeError{
-		token: token.Plus,
-		s:     "Operands must be numbers or strings.",
-	})
+	errors.Error(token.Plus, "Operands must be numbers or strings.")
+	return nil
 }
 
 func isEqual(a, b valuer.Valuer) bool {

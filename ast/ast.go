@@ -82,7 +82,7 @@ func (lit *Literal) String() string {
 
 type (
 	AssignExpr struct {
-		Left  string
+		Left  *VariableExpr
 		Value Expr
 	}
 	BinaryExpr struct {
@@ -124,7 +124,8 @@ type (
 		Right    Expr
 	}
 	VariableExpr struct {
-		Name string
+		Name     string
+		Distance int // -1 represents global variable.
 	}
 )
 

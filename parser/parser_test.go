@@ -30,16 +30,8 @@ func TestParseExpression(t *testing.T) {
 			expected: "(123 - ((456 * 789) / 123))",
 		},
 	}
-	for i, test := range tests {
-		p := newParserFromInput(test.input)
-		expr, err := parseExpression(p)
-		if err != nil {
-			t.Fatalf("test [%d]: parse failed. error is %s", i, err.Error())
-		}
-		if expr.String() != test.expected {
-			t.Fatalf("test [%d]: expected expression is %q. got %q.", i, test.expected, expr.String())
-		}
-	}
+
+	testExpr(t, tests)
 }
 
 func TestParseLogicExpr(t *testing.T) {
@@ -61,16 +53,35 @@ func TestParseLogicExpr(t *testing.T) {
 			expected: "a = 2 and false",
 		},
 	}
-	for i, test := range tests {
-		p := newParserFromInput(test.input)
-		expr, err := parseExpression(p)
-		if err != nil {
-			t.Fatalf("test [%d] parse failed. error is %s", i, err.Error())
-		}
-		if expr.String() != test.expected {
-			t.Fatalf("test [%d] expected expression is %q. got %q.", i, test.expected, expr.String())
-		}
+	testExpr(t, tests)
+}
+
+func TestParseGetExpr(t *testing.T) {
+	tests := []parserTest{
+		{
+			input:    "x.y",
+			expected: "x.y",
+		},
+		{
+			input:    "x.y.z",
+			expected: "x.y.z",
+		},
 	}
+	testExpr(t, tests)
+}
+
+func TestParseSetExpr(t *testing.T) {
+	tests := []parserTest{
+		{
+			input:    "x.y = 1",
+			expected: "x.y = 1",
+		},
+		{
+			input:    "x.y.z = 1",
+			expected: "x.y.z = 1",
+		},
+	}
+	testExpr(t, tests)
 }
 
 func TestParseExpressionRecover(t *testing.T) {
@@ -213,6 +224,18 @@ func TestParseFunction(t *testing.T) {
 	testAstString(t, input, expected)
 }
 
+func TestParseClass(t *testing.T) {
+	input := `class A {}
+	class B {}
+	class C {}`
+	expected := []string{
+		"class A",
+		"class B",
+		"class C",
+	}
+	testAstString(t, input, expected)
+}
+
 func newParserFromInput(input string) *Parser {
 	l := lexer.New(input)
 	return New(l)
@@ -231,6 +254,19 @@ func parseExpression(p *Parser) (expr ast.Expr, err error) {
 	}()
 	expr = p.parseExpression()
 	return expr, nil
+}
+
+func testExpr(t *testing.T, tests []parserTest) {
+	for i, test := range tests {
+		p := newParserFromInput(test.input)
+		expr, err := parseExpression(p)
+		if err != nil {
+			t.Fatalf("test [%d] parse failed. error is %s", i, err.Error())
+		}
+		if expr.String() != test.expected {
+			t.Fatalf("test [%d] expected expression is %q. got %q.", i, test.expected, expr.String())
+		}
+	}
 }
 
 func block(s string) string {

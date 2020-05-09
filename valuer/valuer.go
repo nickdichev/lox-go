@@ -13,6 +13,7 @@ var typeMap = map[Type]string{
 	NilType:      "nil",
 	FunctionType: "function",
 	ReturnType:   "return",
+	ClassType:    "class",
 }
 
 // Type represents type of Valuer.
@@ -25,6 +26,8 @@ const (
 	NilType                      // nil
 	FunctionType                 // function
 	ReturnType                   // return
+	ClassType                    // class
+	InstanceType                 // instance
 )
 
 func (typ Type) String() string {
@@ -37,6 +40,11 @@ func (typ Type) String() string {
 type Valuer interface {
 	Type() Type
 	String() string
+}
+
+type Callable interface {
+	call()
+	Arity() int
 }
 
 type Number struct {
@@ -85,6 +93,8 @@ type Function struct {
 // Type returns its Type.
 func (*Function) Type() Type { return FunctionType }
 
+func (*Function) call() {}
+
 func (fn *Function) String() string {
 	return "<fn " + fn.Name + ">"
 }
@@ -103,4 +113,54 @@ func (*ReturnValue) Type() Type { return ReturnType }
 
 func (rt *ReturnValue) String() string {
 	return rt.Value.String()
+}
+
+type ClassValue struct {
+	Name    string
+	Mehtods map[string]*Function
+}
+
+func (*ClassValue) Type() Type { return ClassType }
+
+func (*ClassValue) call() {}
+
+func (*ClassValue) Arity() int { return 0 }
+
+func (c *ClassValue) String() string {
+	return "class " + c.Name
+}
+
+func (c *ClassValue) FindMethod(key string) *Function {
+	if method, ok := c.Mehtods[key]; ok {
+		return method
+	}
+	return nil
+}
+
+type Instance struct {
+	Klass  *ClassValue
+	Fileds map[string]Valuer
+}
+
+func (*Instance) Type() Type { return ClassType }
+
+func (i *Instance) String() string {
+	return i.Klass.Name + " instance"
+}
+
+func (i *Instance) Get(key string) (Valuer, bool) {
+	if v, ok := i.Fileds[key]; ok {
+		return v, ok
+	}
+	if method := i.Klass.FindMethod(key); method != nil {
+		return method, true
+	}
+	return nil, false
+}
+
+func (i *Instance) Set(key string, v Valuer) {
+	if i.Fileds == nil {
+		i.Fileds = make(map[string]Valuer)
+	}
+	i.Fileds[key] = v
 }

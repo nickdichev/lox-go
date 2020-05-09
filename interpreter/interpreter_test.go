@@ -201,9 +201,47 @@ func TestReturnStatement(t *testing.T) {
 	print fn();
 
 	var fn1 = gen();
-	print fn1();
-`
-	expected := []string{"1", "1", "3", "4", "3"}
+	print fn1();`
+	expected := []string{
+		"1", "1", // print f();
+		"3", "4", // print fn();
+		"3", // print fn1();
+	}
+	testEvalPrintStmt(t, input, expected)
+}
+
+func TestEvalClass(t *testing.T) {
+	input := `class A {
+		fn() {
+			print "a.fn";
+		}
+	}
+	class B {
+		fn() {
+			print "b.fn";
+		}
+	}
+
+	var a = A();
+	print a;
+	a.y = 1;
+	a.y1 = 2;
+	a.fn();
+
+	var b = B();
+	b.x = a;
+	print b.x.y;
+	print b.x.y1;
+	b.fn();
+	b.x.fn();`
+	expected := []string{
+		"A instance", // print a;
+		"a.fn",       // a.fn();
+		"1",          // print b.x.y;
+		"2",          // print b.x.y1;
+		"b.fn",       // b.fn();
+		"a.fn",       // b.x.fn();
+	}
 	testEvalPrintStmt(t, input, expected)
 }
 
@@ -222,7 +260,11 @@ func TestFunctionClosure(t *testing.T) {
 	print fn(2);
 	var fn1 = gen(0);
 	print fn1(1);`
-	expected := []string{"2", "4", "2"}
+	expected := []string{
+		"2", // print fn(1);
+		"4", // print fn(2);
+		"2", // print fn1(1);
+	}
 	testEvalPrintStmt(t, input, expected)
 }
 

@@ -65,6 +65,8 @@ func Interpret(statements []ast.Stmt) {
 
 func Eval(node ast.Node) valuer.Valuer {
 	switch n := node.(type) {
+	default:
+		panic("Eval fail: unknown ast type.")
 	case *ast.Literal:
 		return evalLiteral(n)
 	case *ast.BinaryExpr:
@@ -81,6 +83,10 @@ func Eval(node ast.Node) valuer.Valuer {
 		return evalLogicalExpr(n)
 	case *ast.CallExpr:
 		return evalCallExpr(n)
+	case *ast.GetExpr:
+		return evalGetExpr(n)
+	case *ast.SetExpr:
+		return evalSetExpr(n)
 	case *ast.VarStmt:
 		evalVarStmt(n)
 		return nil
@@ -100,9 +106,10 @@ func Eval(node ast.Node) valuer.Valuer {
 		return evalWhileStmt(n)
 	case *ast.ReturnStmt:
 		return evalReturnStmt(n)
+	case *ast.ClassStmt:
+		evalClassStmt(n)
+		return nil
 	}
-
-	panic("unknown ast type.")
 }
 
 func evalLiteral(lit *ast.Literal) valuer.Valuer {
@@ -239,22 +246,62 @@ func evalLogicalExpr(expr *ast.LogicalExpr) valuer.Valuer {
 
 func evalCallExpr(expr *ast.CallExpr) valuer.Valuer {
 	callee := Eval(expr.Callee)
-	function, ok := callee.(*valuer.Function)
+	callableValue, ok := callee.(valuer.Callable)
 	if !ok {
 		errors.Error(token.LeftParen, "Can only call functions and classes.")
+		return nil
 	}
-	if function.Arity() != len(expr.Arguments) {
-		errors.Error(token.LeftParen, fmt.Sprintf("Expected %d arguments bug got %d", function.Arity(), len(expr.Arguments)))
+	if l, l1 := callableValue.Arity(), len(expr.Arguments); l != l1 {
+		errors.Error(token.LeftParen, fmt.Sprintf("Expected %d arguments but got %d", l, l1))
+		return nil
 	}
+
+	switch n := callee.(type) {
+	default:
+		panic("invaid type")
+	case *valuer.Function:
+		return callFunction(n, expr.Arguments)
+	case *valuer.ClassValue:
+		return &valuer.Instance{Klass: n}
+	}
+}
+
+func callFunction(function *valuer.Function, arguments []ast.Expr) valuer.Valuer {
 	environment := function.Closure
 	environment = valuer.NewEnclosing(function.Closure)
 	for i, param := range function.Params {
-		environment.Define(param.Name, Eval(expr.Arguments[i]))
+		environment.Define(param.Name, Eval(arguments[i]))
 	}
 	v := executeBlock(function.Body, environment)
 	if returnValue, ok := v.(*valuer.ReturnValue); ok {
 		return returnValue.Value
 	}
+	return v
+}
+
+func evalGetExpr(expr *ast.GetExpr) valuer.Valuer {
+	object := Eval(expr.Object)
+	instance, ok := object.(*valuer.Instance)
+	if !ok {
+		errors.Error(token.Identifier, "Only instances have properties.")
+		return nil
+	}
+	if v, ok := instance.Get(expr.Name); ok {
+		return v
+	}
+	errors.Error(token.Identifier, fmt.Sprintf("Undefined propter %s.", expr.Name))
+	return nil
+}
+
+func evalSetExpr(expr *ast.SetExpr) valuer.Valuer {
+	object := Eval(expr.Object)
+	instance, ok := object.(*valuer.Instance)
+	if !ok {
+		errors.Error(token.Identifier, "Only instances have properties.")
+		return nil
+	}
+	v := Eval(expr.Value)
+	instance.Set(expr.Name, v)
 	return v
 }
 
@@ -339,6 +386,24 @@ func evalReturnStmt(stmt *ast.ReturnStmt) valuer.Valuer {
 	return &valuer.ReturnValue{
 		Value: v,
 	}
+}
+
+func evalClassStmt(stmt *ast.ClassStmt) {
+	methods := make(map[string]*valuer.Function, len(stmt.Methods))
+	for _, method := range stmt.Methods {
+		fn := &valuer.Function{
+			Name:    method.Name,
+			Params:  method.Params,
+			Body:    method.Body,
+			Closure: env,
+		}
+		methods[method.Name] = fn
+	}
+	cl := &valuer.ClassValue{
+		Name:    stmt.Name,
+		Mehtods: methods,
+	}
+	env.Define(stmt.Name, cl)
 }
 
 func checkNumberOperand(operator token.Token, right valuer.Valuer) float64 {

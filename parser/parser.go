@@ -58,6 +58,9 @@ func (p *Parser) parseDeclaration() ast.Stmt {
 	if p.match(token.Fun) {
 		return p.parseFunDeclaration()
 	}
+	if p.match(token.Class) {
+		return p.parseClassDeclaration()
+	}
 	return p.parseStatement()
 }
 
@@ -106,6 +109,25 @@ func (p *Parser) parseFunDeclaration() *ast.FunctionStmt {
 	p.expect(token.LeftBrace, "Expect '{' before function body.")
 	fun.Body = p.parseBlockStatement().Statements
 	return fun
+}
+
+func (p *Parser) parseClassDeclaration() *ast.ClassStmt {
+	name := p.lit
+	p.expect(token.Identifier, "Expect class name.")
+	p.expect(token.LeftBrace, "Expect '{' after class name.")
+
+	methods := make([]*ast.FunctionStmt, 0)
+	for p.check(token.Identifier) {
+		method := p.parseFunDeclaration()
+		methods = append(methods, method)
+	}
+
+	p.expect(token.RightBrace, "Expect '}' after class block.")
+
+	return &ast.ClassStmt{
+		Name:    name,
+		Methods: methods,
+	}
 }
 
 func (p *Parser) parseStatement() ast.Stmt {
@@ -259,13 +281,21 @@ func (p *Parser) parseAssignment() ast.Expr {
 	if p.match(token.Equal) {
 		// recursive call.
 		v := p.parseAssignment()
-		if variable, ok := expr.(*ast.VariableExpr); ok {
+		switch e := expr.(type) {
+		default:
+			p.error("Invalid assignment target.")
+		case *ast.VariableExpr:
 			return &ast.AssignExpr{
-				Left:  variable,
+				Left:  e,
 				Value: v,
 			}
+		case *ast.GetExpr:
+			return &ast.SetExpr{
+				Object: e.Object,
+				Name:   e.Name,
+				Value:  v,
+			}
 		}
-		p.error("Invalid assignment target.")
 	}
 	return expr
 }
@@ -375,6 +405,10 @@ func (p *Parser) parseCall() ast.Expr {
 	for {
 		if p.match(token.LeftParen) {
 			expr = p.finishCall(expr)
+		} else if p.match(token.Dot) {
+			name := p.lit
+			p.expect(token.Identifier, "Expect property name after '.'.")
+			expr = &ast.GetExpr{Object: expr, Name: name}
 		} else {
 			break
 		}

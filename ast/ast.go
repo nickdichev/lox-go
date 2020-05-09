@@ -96,7 +96,7 @@ type (
 	}
 	GetExpr struct {
 		Object Expr
-		Name   *Ident
+		Name   string
 	}
 	GroupingExpr struct {
 		Expression Expr
@@ -108,7 +108,7 @@ type (
 	}
 	SetExpr struct {
 		Object Expr
-		Name   *Ident
+		Name   string
 		Value  Expr
 	}
 	SuperExpr struct {
@@ -158,7 +158,7 @@ func (e *CallExpr) String() string {
 }
 
 func (e *GetExpr) String() string {
-	return "TODO"
+	return e.Object.String() + "." + e.Name
 }
 
 func (e *GroupingExpr) String() string {
@@ -170,7 +170,7 @@ func (e *LogicalExpr) String() string {
 }
 
 func (e *SetExpr) String() string {
-	return "TODO"
+	return fmt.Sprintf("%s.%s = %s", e.Object, e.Name, e.Value)
 }
 
 func (e *SuperExpr) String() string {
@@ -194,9 +194,9 @@ type (
 		Statements []Stmt
 	}
 	ClassStmt struct {
-		Name       *Ident
+		Name       string
 		SuperClass VariableExpr
-		Methods    []FunctionStmt
+		Methods    []*FunctionStmt
 	}
 	ExprStmt struct {
 		Expression Expr
@@ -248,7 +248,9 @@ func (s *BlockStmt) String() string {
 	return sb.String()
 }
 
-func (s *ClassStmt) String() string { return "TODO" }
+func (s *ClassStmt) String() string {
+	return "class " + s.Name
+}
 
 func (s *ExprStmt) String() string {
 	return s.Expression.String() + ";"

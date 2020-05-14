@@ -66,7 +66,7 @@ func Interpret(statements []ast.Stmt) {
 func Eval(node ast.Node) valuer.Valuer {
 	switch n := node.(type) {
 	default:
-		panic("Eval fail: unknown ast type.")
+		panic(fmt.Sprintf("unknown ast type %#v.", n))
 	case *ast.Literal:
 		return evalLiteral(n)
 	case *ast.BinaryExpr:
@@ -87,6 +87,8 @@ func Eval(node ast.Node) valuer.Valuer {
 		return evalGetExpr(n)
 	case *ast.SetExpr:
 		return evalSetExpr(n)
+	case *ast.ThisExpr:
+		return evalThisExpr(n)
 	case *ast.VarStmt:
 		evalVarStmt(n)
 		return nil
@@ -262,8 +264,17 @@ func evalCallExpr(expr *ast.CallExpr) valuer.Valuer {
 	case *valuer.Function:
 		return callFunction(n, expr.Arguments)
 	case *valuer.ClassValue:
-		return &valuer.Instance{Klass: n}
+		return constructInstance(n, expr.Arguments)
 	}
+}
+
+func constructInstance(c *valuer.ClassValue, arguments []ast.Expr) *valuer.Instance {
+	instance := &valuer.Instance{Klass: c}
+	initializer := c.FindMethod("init")
+	if initializer != nil {
+		callFunction(initializer.Bind(instance), arguments)
+	}
+	return instance
 }
 
 func callFunction(function *valuer.Function, arguments []ast.Expr) valuer.Valuer {
@@ -273,6 +284,14 @@ func callFunction(function *valuer.Function, arguments []ast.Expr) valuer.Valuer
 		environment.Define(param.Name, Eval(arguments[i]))
 	}
 	v := executeBlock(function.Body, environment)
+	if function.IsInitializer {
+		// lookup this in function.Closure
+		if v, ok := function.Closure.GetAt(0, "this"); ok {
+			return v
+		}
+		errors.Error(token.Fun, "Cann't get this in currrent enviroment.")
+		return nil
+	}
 	if returnValue, ok := v.(*valuer.ReturnValue); ok {
 		return returnValue.Value
 	}
@@ -289,7 +308,7 @@ func evalGetExpr(expr *ast.GetExpr) valuer.Valuer {
 	if v, ok := instance.Get(expr.Name); ok {
 		return v
 	}
-	errors.Error(token.Identifier, fmt.Sprintf("Undefined propter %s.", expr.Name))
+	errors.Error(token.Identifier, fmt.Sprintf("Undefined propterty %s.", expr.Name))
 	return nil
 }
 
@@ -303,6 +322,14 @@ func evalSetExpr(expr *ast.SetExpr) valuer.Valuer {
 	v := Eval(expr.Value)
 	instance.Set(expr.Name, v)
 	return v
+}
+
+func evalThisExpr(expr *ast.ThisExpr) valuer.Valuer {
+	if v, ok := env.Get("this"); ok {
+		return v
+	}
+	errors.Error(token.This, "Cannot use 'this' outside of a class.")
+	return nil
 }
 
 func evalExprStmt(stmt *ast.ExprStmt) valuer.Valuer {
@@ -392,10 +419,11 @@ func evalClassStmt(stmt *ast.ClassStmt) {
 	methods := make(map[string]*valuer.Function, len(stmt.Methods))
 	for _, method := range stmt.Methods {
 		fn := &valuer.Function{
-			Name:    method.Name,
-			Params:  method.Params,
-			Body:    method.Body,
-			Closure: env,
+			Name:          method.Name,
+			Params:        method.Params,
+			Body:          method.Body,
+			Closure:       env,
+			IsInitializer: method.IsInitializer,
 		}
 		methods[method.Name] = fn
 	}

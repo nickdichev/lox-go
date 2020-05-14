@@ -119,6 +119,7 @@ func (p *Parser) parseClassDeclaration() *ast.ClassStmt {
 	methods := make([]*ast.FunctionStmt, 0)
 	for p.check(token.Identifier) {
 		method := p.parseFunDeclaration()
+		method.IsInitializer = method.Name == "init"
 		methods = append(methods, method)
 	}
 
@@ -453,6 +454,8 @@ func (p *Parser) parsePrimary() (expr ast.Expr) {
 			Name:     lit,
 			Distance: -1,
 		}
+	case token.This:
+		expr = &ast.ThisExpr{}
 	case token.LeftParen:
 		p.nextToken()
 		inner := p.parseExpression()

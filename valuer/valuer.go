@@ -84,10 +84,11 @@ func (*Nil) Type() Type { return NilType }
 func (*Nil) String() string { return "nil" }
 
 type Function struct {
-	Name    string
-	Params  []*ast.Ident
-	Body    []ast.Stmt
-	Closure *Environment
+	Name          string
+	Params        []*ast.Ident
+	Body          []ast.Stmt
+	Closure       *Environment
+	IsInitializer bool
 }
 
 // Type returns its Type.
@@ -102,6 +103,17 @@ func (fn *Function) String() string {
 // Arity returns size of params.
 func (fn *Function) Arity() int {
 	return len(fn.Params)
+}
+
+func (fn *Function) Bind(instance *Instance) *Function {
+	environment := NewEnclosing(fn.Closure)
+	environment.Define("this", instance)
+	return &Function{
+		Name:    fn.Name,
+		Params:  fn.Params,
+		Body:    fn.Body,
+		Closure: environment,
+	}
 }
 
 type ReturnValue struct {
@@ -124,7 +136,13 @@ func (*ClassValue) Type() Type { return ClassType }
 
 func (*ClassValue) call() {}
 
-func (*ClassValue) Arity() int { return 0 }
+func (c *ClassValue) Arity() int {
+	initializer := c.FindMethod("init")
+	if initializer != nil {
+		return initializer.Arity()
+	}
+	return 0
+}
 
 func (c *ClassValue) String() string {
 	return "class " + c.Name
@@ -153,7 +171,7 @@ func (i *Instance) Get(key string) (Valuer, bool) {
 		return v, ok
 	}
 	if method := i.Klass.FindMethod(key); method != nil {
-		return method, true
+		return method.Bind(i), true
 	}
 	return nil, false
 }

@@ -116,9 +116,7 @@ type (
 		Keyword token.Token
 		Method  token.Token
 	}
-	ThisExpr struct {
-		Keyword token.Token
-	}
+	ThisExpr struct {}
 	UnaryExpr struct {
 		Operator token.Token
 		Right    Expr
@@ -178,7 +176,7 @@ func (e *SuperExpr) String() string {
 }
 
 func (e *ThisExpr) String() string {
-	return "TODO"
+	return "this"
 }
 
 func (e *UnaryExpr) String() string {
@@ -202,9 +200,10 @@ type (
 		Expression Expr
 	}
 	FunctionStmt struct {
-		Name   string
-		Params []*Ident
-		Body   []Stmt
+		Name          string
+		Params        []*Ident
+		Body          []Stmt
+		IsInitializer bool
 	}
 	IfStmt struct {
 		Condition  Expr

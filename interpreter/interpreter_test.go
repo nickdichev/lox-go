@@ -210,6 +210,29 @@ func TestReturnStatement(t *testing.T) {
 	testEvalPrintStmt(t, input, expected)
 }
 
+func TestFunctionClosure(t *testing.T) {
+	input := `
+	fun gen(x) {
+		var a = 0;
+		fun inner(y) {
+			a = a + 1;
+			return a + x + y;
+		}
+		return inner;
+	}
+	var fn = gen(0);
+	print fn(1);
+	print fn(2);
+	var fn1 = gen(0);
+	print fn1(1);`
+	expected := []string{
+		"2", // print fn(1);
+		"4", // print fn(2);
+		"2", // print fn1(1);
+	}
+	testEvalPrintStmt(t, input, expected)
+}
+
 func TestEvalClass(t *testing.T) {
 	input := `class A {
 		fn() {
@@ -245,27 +268,60 @@ func TestEvalClass(t *testing.T) {
 	testEvalPrintStmt(t, input, expected)
 }
 
-func TestFunctionClosure(t *testing.T) {
-	input := `
-	fun gen(x) {
-		var a = 0;
-		fun inner(y) {
-			a = a + 1;
-			return a + x + y;
+func TestEvalThisAndInit(t *testing.T) {
+	input := `class A {
+		init(y) {
+			this.y = y;
 		}
-		return inner;
+		fn() {
+			print this.x;
+		}
 	}
-	var fn = gen(0);
-	print fn(1);
-	print fn(2);
-	var fn1 = gen(0);
-	print fn1(1);`
+	var a = A(2);
+	a.x = 1;
+	a.fn();
+	print a.y;
+
+	var fn = a.fn();
+	fn();`
 	expected := []string{
-		"2", // print fn(1);
-		"4", // print fn(2);
-		"2", // print fn1(1);
+		"1", // a.fn();
+		"2", // print a.y;
+		"1", // fn();
 	}
 	testEvalPrintStmt(t, input, expected)
+}
+
+func TestResolveError(t *testing.T) {
+	tests := []struct {
+		input string
+		msg   string
+	}{
+		{"return 123;", "Cannot return from top-level."},
+		{"print this;", "Cannot use this outside of a class."},
+		{`class A {
+			init() {
+				return "x";
+			}
+		}`, "Cannot return a value from init."},
+	}
+
+	for i, test := range tests {
+		stmts, err := parser.ParseStmts(test.input)
+		if err != nil {
+			t.Fatalf("test [%d] failed. error: %s", i, err.Error())
+		}
+		initEnv()
+		defer func(i int, s string) {
+			if r := recover(); r != nil {
+				if _, ok := r.(errors.RuntimeError); !ok {
+					t.Fatalf("test [%d] failed. %s", i, s)
+				}
+			}
+		}(i, test.msg)
+		Interpret(stmts)
+	}
+
 }
 
 func evalExprFromInput(input string) (v valuer.Valuer, err error) {

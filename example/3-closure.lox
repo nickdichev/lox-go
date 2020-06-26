@@ -1,0 +1,13 @@
+fun gen() {
+    var a = 0;
+    fun inner() {
+        a = a + 1;
+        return a;
+    }
+    return inner;
+}
+
+var fn = gen();
+
+print fn();
+print fn();

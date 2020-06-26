@@ -18,6 +18,7 @@ var (
 	Nil   = &valuer.Nil{}
 )
 
+// potential value is empty or "repl".
 var evalEnv string
 
 var (
@@ -58,7 +59,7 @@ func Interpret(statements []ast.Stmt) {
 			}
 		}
 	}
-	if v != nil && evalEnv != "" {
+	if v != nil && evalEnv == "repl" {
 		fmt.Printf("%s %s\n", black(v.Type().String()), v)
 	}
 }
@@ -528,4 +529,9 @@ func toBooleanValuer(t bool) *valuer.Boolean {
 
 func black(s string) string {
 	return "\033[1;30m" + s + "\033[0m"
+}
+
+// SetEvalEnv specify eval env of Interpreter.
+func SetEvalEnv(envConfig string) {
+	evalEnv = envConfig
 }

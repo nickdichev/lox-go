@@ -11,3 +11,18 @@ http://www.craftinginterpreters.com/appendix-i.html
 
 - E-notation
 - Unicode character
+
+### Build & Test
+
+Build
+
+```
+make
+./lox example/1-hello-world.lox
+```
+
+Test
+
+```
+make test
+```

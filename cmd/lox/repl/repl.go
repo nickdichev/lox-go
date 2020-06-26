@@ -16,6 +16,7 @@ const prompt = ">> "
 // Start creates a REPL for Lox.
 func Start(in io.Reader, out io.Writer) {
 	scanner := bufio.NewScanner(in)
+	interpreter.SetEvalEnv("repl")
 	for {
 		fmt.Fprintf(out, prompt)
 		scanned := scanner.Scan()

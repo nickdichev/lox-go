@@ -1,0 +1,13 @@
+class A {
+    fn() {
+        print "a.fn";
+    }
+}
+
+var a = A();
+print a;
+
+a.y = 1;
+print a.y;
+
+a.fn();
